@@ -228,21 +228,27 @@ export function getPageGenerationInferenceMessages(
       content:
 `Now we're going to specifically write the part ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
 
-1. Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs.
+1. Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
+<Steps>
+### Step 1
+
+Contents
+
+### Step 2
+
+Contents
+</Steps>
 2. Write only the section, no need to talk to me when you're writing it.
 3. Write it as an expert in the themes, but for the intended audience.
 5. Don't put mdx code blocks around the output, just start writing.
-6. Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead surround them with --~.
+6. Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX].
 7. Presume that the other sections are written.
 8. Be casually direct, confident and straightforward. Use appropriate examples when needed.
 9. Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).
 10. Provide examples when needed from your knowledge.
 11. Use bullet points to simplify when possible.
-12. Make sure to start headings in each section and subsection at the top level (#).`
-    },
-    {
-      role: "assistant",
-      content: "Here is the section: ",
+12. Make sure to start headings in each section and subsection at the top level (#).
+13. When asked to write a section, you don't need to write the subsections inside it. Presume they have their own pages.`
     },
   ];
 }

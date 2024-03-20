@@ -31,10 +31,15 @@ import {
   getTitleInferenceMessages,
 } from "./prompts";
 import { getClaudeCosts, runClaudeInference } from "./ai";
-import { Outline, OutlineSection, WizardState } from "./types";
+import {
+  Outline,
+  OutlineSection,
+  ReadyToGeneratePage,
+  WizardState,
+} from "./types";
 import { getRequiredHeader } from "@anthropic-ai/sdk/core";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
-import { idempotentlySetupNextraDocs } from "./page-generator";
+import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -101,7 +106,14 @@ async function runWizard() {
       if (
         filename &&
         filename.trim() &&
-        !fs.existsSync(filename.replace(/^["'](.*)["']$/, "$1").trim())
+        !fs.existsSync(
+          path.normalize(
+            filename
+              .replace(/^["'](.*)["']$/, "$1")
+              .replace(/\\/, "")
+              .trim()
+          )
+        )
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
@@ -109,12 +121,15 @@ async function runWizard() {
   });
 
   if (fileName.trim()) {
-    wizardState.primarySourceFilename = fileName
-      .replace(/^["'](.*)["']$/, "$1")
-      .trim();
+    wizardState.primarySourceFilename = path.normalize(
+      fileName
+        .replace(/^["'](.*)["']$/, "$1")
+        .replace(/\\/, "")
+        .trim()
+    );
 
     const dataFromFile = fs.readFileSync(
-      fileName.replace(/^["'](.*)["']$/, "$1").trim(),
+      wizardState.primarySourceFilename,
       "utf-8"
     );
 
@@ -402,7 +417,7 @@ async function runWizard() {
       2048,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.ambiguityExplained ? false : true,
+    default: false,
     transformer: (answer) => (answer ? "👍" : "👎"),
   });
 
@@ -705,11 +720,7 @@ async function runWizard() {
   function getPageWritingMessages(
     sections: OutlineSection[],
     levels: string[]
-  ): {
-    section: OutlineSection;
-    levels: string[];
-    messages: MessageParam[];
-  }[] {
+  ): ReadyToGeneratePage[] {
     return sections
       .map((section) => {
         const sectionMessages = {
@@ -743,6 +754,8 @@ async function runWizard() {
     cleanedOutline.sections
   );
 
+  console.log("\nCalculating costs...\n");
+
   const pageWritingMessages = getPageWritingMessages(
     cleanedOutline.sections,
     []
@@ -754,7 +767,7 @@ async function runWizard() {
       .reduce((a, b) => a + b, 0)
   );
 
-  wizardState.smarterModel = await select({
+  wizardState.pageGenerationModel = await select({
     message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
     choices: CLAUDE_MODELS.map((model, index) => ({
       name: model.name,
@@ -762,7 +775,7 @@ async function runWizard() {
       description:
         model.pageDescription + " " + `(costs $${costs[index].toFixed(4)})`,
     })).concat(new Separator() as any),
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
+    default: wizardState.pageGenerationModel || CLAUDE_MODELS[0].model,
   });
 
   saveState(wizardState);
@@ -792,21 +805,43 @@ async function runWizard() {
 
   const docsFolder = process.cwd();
 
-  const overwrite =
+  wizardState.overwritePages =
     (fs.existsSync(path.join(docsFolder, "pages")) &&
       (await confirm({
         message:
-          "There seem to already be a pages folder. Do you want us not to overwrite anything we find? ",
-        default: false,
+          "There seem to already be a pages folder. Should we overwrite? ",
+        default: wizardState.overwritePages || false,
         transformer: (answer) => (answer ? "👍" : "👎"),
       }))) ||
     false;
 
-  idempotentlySetupNextraDocs(
-    docsFolder,
-    RUNNERS.find(
-      (runner) => runner.command === wizardState.preferredRunnerForNextra
-    )!,
+  saveState(wizardState);
+
+  if (!fs.existsSync(path.join(docsFolder, "pages"))) {
+    idempotentlySetupNextraDocs(
+      docsFolder,
+      RUNNERS.find(
+        (runner) => runner.command === wizardState.preferredRunnerForNextra
+      )!,
+      wizardState
+    );
+  }
+
+  const finalCheck = await confirm({
+    message: "Ready to start? ",
+    default: true,
+    transformer: (answer) => (answer ? "👍" : "👎"),
+  });
+
+  if (!finalCheck) {
+    console.log("No problem! You know where to find me.");
+    return;
+  }
+
+  await generatePages(
+    true,
+    pageWritingMessages,
+    path.join(docsFolder, "pages"),
     wizardState
   );
 }

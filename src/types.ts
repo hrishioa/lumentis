@@ -1,3 +1,5 @@
+import type { MessageParam } from "@anthropic-ai/sdk/resources";
+
 export type OutlineSection = LLMOutlineSection & { disabled?: boolean };
 
 export type LLMOutlineSection = {
@@ -10,6 +12,12 @@ export type LLMOutlineSection = {
 export type Outline = {
   title: string;
   sections: OutlineSection[];
+};
+
+export type ReadyToGeneratePage = {
+  section: OutlineSection;
+  levels: string[];
+  messages: MessageParam[];
 };
 
 export type WizardState = Partial<{
@@ -31,4 +39,5 @@ export type WizardState = Partial<{
   generatedOutline: Outline;
   pageGenerationModel: string;
   preferredRunnerForNextra: string;
+  overwritePages: boolean;
 }>;

@@ -8,6 +8,8 @@ export const wizardStatePath = path.join(lumentisFolderPath, WIZARD_STATE_FILE);
 
 export const MAX_HEADING_CHAR_LENGTH = 50;
 
+export const NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE = 200;
+
 export const CLAUDE_MODELS = [
   {
     name: "Claude 3 Opus",

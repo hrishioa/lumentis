@@ -3,7 +3,11 @@ import { countTokens } from "@anthropic-ai/tokenizer";
 import Anthropic from "@anthropic-ai/sdk";
 import fs from "fs";
 import path from "path";
-import { lumentisFolderPath, MESSAGES_FOLDER } from "./constants";
+import {
+  lumentisFolderPath,
+  MESSAGES_FOLDER,
+  NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
+} from "./constants";
 
 export async function runClaudeInference(
   messages: MessageParam[],
@@ -12,7 +16,9 @@ export async function runClaudeInference(
   apiKey?: string,
   streamToConsole: boolean = false,
   saveName?: string,
-  jsonType?: "parse" | "started_array" | "started_object"
+  jsonType?: "parse" | "started_array" | "started_object",
+  saveToFilepath?: string,
+  prefix?: string
 ) {
   const messageBackupSpot = path.join(lumentisFolderPath, MESSAGES_FOLDER);
 
@@ -34,9 +40,15 @@ export async function runClaudeInference(
     });
 
     let outputTokens = 0,
-      fullMessage = "";
+      fullMessage = "",
+      diffToFlush = 0;
 
-    if (streamToConsole) process.stdout.write(`\n\nStreaming from ${model}: `);
+    if (streamToConsole)
+      process.stdout.write(
+        `\n\nStreaming from ${model}${
+          saveToFilepath ? ` to ${saveToFilepath}` : ""
+        }: `
+      );
 
     for await (const chunk of response) {
       const chunkText =
@@ -50,6 +62,15 @@ export async function runClaudeInference(
       if (streamToConsole) process.stdout.write(chunkText);
 
       fullMessage += chunkText;
+
+      if (saveToFilepath) {
+        diffToFlush += chunkText.length;
+
+        if (diffToFlush > NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE) {
+          diffToFlush = 0;
+          fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+        }
+      }
     }
 
     if (streamToConsole) process.stdout.write("\n\n");
@@ -66,8 +87,12 @@ export async function runClaudeInference(
         }
       } else if (jsonType == "started_array") {
         fullMessage = "[" + fullMessage;
+
+        fullMessage = fullMessage.split("```")[0];
       } else if (jsonType == "started_object") {
         fullMessage = "{" + fullMessage;
+
+        fullMessage = fullMessage.split("```")[0];
       }
     }
 
@@ -77,6 +102,10 @@ export async function runClaudeInference(
         path.join(messageBackupSpot, saveName + "_response" + ".txt"),
         fullMessage
       );
+    }
+
+    if (saveToFilepath) {
+      fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
     }
 
     return {
