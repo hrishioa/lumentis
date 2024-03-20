@@ -7,6 +7,7 @@ import {
   lumentisFolderPath,
   RUNNERS,
   wizardStatePath,
+  WRITING_STYLE_SIZE_LIMIT,
 } from "./constants";
 import path from "path";
 import fs from "fs";
@@ -71,7 +72,7 @@ async function runWizard() {
 
   wizardState.smarterModel = await select({
     message:
-      "Pick a model for meta inference. Smarter is preferred, you can use a cheaper model for the actual writing later.",
+      "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
     choices: CLAUDE_MODELS.map((model) => ({
       name: model.name,
       value: model.model,
@@ -84,7 +85,7 @@ async function runWizard() {
 
   wizardState.streamToConsole = await confirm({
     message:
-      "Do you want to stream outputs to console? Looks awesome but clutters things up:",
+      "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
     default: wizardState.streamToConsole || false,
     transformer: (answer) => (answer ? "👍" : "👎"),
   });
@@ -93,7 +94,7 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? Drag a file in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
     validate: (filename) => {
       if (
@@ -159,7 +160,7 @@ async function runWizard() {
   wizardState.anthropicKey =
     (await password({
       message:
-        "Please enter an Anthropic API key. (You can leave this blank if it's already in the ENV variable.): ",
+        "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
       mask: "*",
       validate: async (key) => {
         const testResponse = await runClaudeInference(
@@ -181,7 +182,7 @@ async function runWizard() {
   );
 
   const description = await input({
-    message: `Do you have a short description of your source? Who's talking, what type of content is it etc. (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getClaudeCosts(
       descriptionInferenceMessages,
       700,
       wizardState.smarterModel
@@ -203,7 +204,7 @@ async function runWizard() {
 
     if (generatedDescription.success) {
       console.log(
-        `Generated description (edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
+        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
       );
 
       wizardState.description = generatedDescription.response;
@@ -227,7 +228,7 @@ async function runWizard() {
   );
 
   const title = await input({
-    message: `Do you have a short title or name? (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getClaudeCosts(
       titleInferenceMessages,
       400,
       wizardState.smarterModel
@@ -283,7 +284,7 @@ async function runWizard() {
   );
 
   const themesFromUser = await input({
-    message: `Do you have any core themes or keywords about the source or the intended audience? (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getClaudeCosts(
       themesInferenceMessages,
       400,
       wizardState.smarterModel
@@ -314,8 +315,6 @@ async function runWizard() {
         })),
       });
 
-      console.log("Got themes - ", selectedThemes);
-
       const newThemesFromUser = await input({
         message: `Enter any more (leave empty for none): `,
       });
@@ -342,7 +341,7 @@ async function runWizard() {
   );
 
   const audienceFromUser = await input({
-    message: `Do you have any intended audience in mind? (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getClaudeCosts(
       audienceInferenceMessages,
       400,
       wizardState.smarterModel
@@ -405,7 +404,7 @@ async function runWizard() {
   const questionPermission = await confirm({
     message: `Are you okay ${
       wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source? (Costs ${getClaudeCosts(
+    }answering some questionsabout things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
       questionsMessages,
       2048,
       wizardState.smarterModel
@@ -466,13 +465,20 @@ async function runWizard() {
 
   const writingExampleFilename = await input({
     message:
-      "Do you have an example of writing style you want to add in (adds cost but improves output, leave blank to skip. Drag in a file): ",
+      "Do you have an example of writing style you want to add in (adds cost but improves output, \nleave blank to skip. Drag in a file): ",
     default: wizardState.writingExampleFilename || undefined,
     validate: (filename) => {
       if (
         filename &&
         filename.trim() &&
-        !fs.existsSync(filename.replace(/^["'](.*)["']$/, "$1"))
+        !fs.existsSync(
+          path.normalize(
+            filename
+              .replace(/^["'](.*)["']$/, "$1")
+              .replace(/\\/, "")
+              .trim()
+          )
+        )
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
@@ -480,14 +486,20 @@ async function runWizard() {
   });
 
   if (writingExampleFilename.trim()) {
-    wizardState.writingExampleFilename = writingExampleFilename;
+    wizardState.writingExampleFilename = writingExampleFilename
+      .replace(/^["'](.*)["']$/, "$1")
+      .replace(/\\/, "")
+      .trim();
 
     const dataFromFile = fs.readFileSync(
-      writingExampleFilename.replace(/^["'](.*)["']$/, "$1"),
+      wizardState.writingExampleFilename,
       "utf-8"
     );
 
-    wizardState.writingExample = dataFromFile;
+    wizardState.writingExample = dataFromFile.substring(
+      0,
+      WRITING_STYLE_SIZE_LIMIT
+    );
   }
 
   saveState(wizardState);
@@ -771,7 +783,9 @@ async function runWizard() {
       description:
         model.pageDescription + " " + `(costs $${costs[index].toFixed(4)})`,
     })).concat(new Separator() as any),
-    default: wizardState.pageGenerationModel || CLAUDE_MODELS[0].model,
+    default:
+      wizardState.pageGenerationModel ||
+      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
   });
 
   saveState(wizardState);

@@ -6,8 +6,9 @@ export const MESSAGES_FOLDER = "messages";
 export const lumentisFolderPath = path.join(process.cwd(), LUMENTIS_FOLDER);
 export const wizardStatePath = path.join(lumentisFolderPath, WIZARD_STATE_FILE);
 
-export const MAX_HEADING_CHAR_LENGTH = 50;
+export const WRITING_STYLE_SIZE_LIMIT = 10000;
 
+export const MAX_HEADING_CHAR_LENGTH = 50;
 export const NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE = 200;
 
 export const CLAUDE_MODELS = [

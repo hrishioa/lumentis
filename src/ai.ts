@@ -31,7 +31,7 @@ export async function runClaudeInference(
   }
 
   try {
-    const anthropic = apiKey ? new Anthropic() : new Anthropic({ apiKey });
+    const anthropic = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
     const response = await anthropic.messages.create({
       messages,
       model,

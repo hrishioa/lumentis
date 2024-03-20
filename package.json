@@ -1,9 +1,9 @@
 {
   "name": "lumentis",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
   "description": "Create awesome docs from your transcripts, notes and documents in seconds, ready to deploy.",
-  "license": "GPL-3.0-only",
+  "license": "by-nc-4.0",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.19.0",
     "@anthropic-ai/tokenizer": "^0.0.4",
@@ -19,9 +19,9 @@
   "bin": {
     "lumentis": "dist/app.js"
   },
-  "script": {
-    "run": "bun run src/app.ts",
-    "build": "tsup"
+  "scripts": {
+    "run": "bun src/app.ts",
+    "package": "tsup"
   },
   "files": [
     "dist"

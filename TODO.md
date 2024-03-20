@@ -10,6 +10,4 @@
 4. \n's
 5. Do we need to ask and set style separately?
 6. Maybe change themes to sections we want to make sure we generate?
-7. Kill the node process
-8. Maybe uncheck the intended audience except top 2
-9. Thing still running is back - need to check and fix
+7. Node process still continues to run sometimes irreproducibly - weird, needs to get killed off specifically
