@@ -122,11 +122,11 @@ function getClaudeCostsWithTokens(
     string,
     { inputTokensPerM: number; outputTokensPerM }
   > = {
-    "claude-3-sonnet-20240229": {
+    "claude-3-opus-20240229": {
       inputTokensPerM: 15,
       outputTokensPerM: 75,
     },
-    "claude-3-opus-20240229": {
+    "claude-3-sonnet-20240229": {
       inputTokensPerM: 3,
       outputTokensPerM: 15,
     },

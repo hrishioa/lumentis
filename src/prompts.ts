@@ -1,5 +1,5 @@
 import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { Outline } from "./types";
+import { Outline, OutlineSection } from "./types";
 
 export function getTitleInferenceMessages(
   primarySource: string,
@@ -207,6 +207,42 @@ type Outline = {
     {
       role: "assistant",
       content: "{",
+    },
+  ];
+}
+
+export function getPageGenerationInferenceMessages(
+  outlineGenerationMessages: MessageParam[],
+  selectedOutline: Outline,
+  selectedSection: OutlineSection
+): MessageParam[] {
+  return [
+    ...outlineGenerationMessages.slice(0, -1),
+    {
+      role: "assistant",
+      content: JSON.stringify(selectedOutline),
+    },
+    // prettier-ignore
+    {
+      role: 'user',
+      content:
+`Now we're going to specifically write the part ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
+
+1. Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs.
+2. Write only the section, no need to talk to me when you're writing it.
+3. Write it as an expert in the themes, but for the intended audience.
+5. Don't put mdx code blocks around the output, just start writing.
+6. Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead surround them with --~.
+7. Presume that the other sections are written.
+8. Be casually direct, confident and straightforward. Use appropriate examples when needed.
+9. Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).
+10. Provide examples when needed from your knowledge.
+11. Use bullet points to simplify when possible.
+12. Make sure to start headings in each section and subsection at the top level (#).`
+    },
+    {
+      role: "assistant",
+      content: "Here is the section: ",
     },
   ];
 }

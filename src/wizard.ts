@@ -24,6 +24,7 @@ import {
   getDescriptionInferenceMessages,
   getOutlineInferenceMessages,
   getOutlineRegenerationInferenceMessages,
+  getPageGenerationInferenceMessages,
   getQuestionsInferenceMessages,
   getThemeInferenceMessages,
   getTitleInferenceMessages,
@@ -31,6 +32,7 @@ import {
 import { getClaudeCosts, runClaudeInference } from "./ai";
 import { Outline, OutlineSection } from "./types";
 import { getRequiredHeader } from "@anthropic-ai/sdk/core";
+import { MessageParam } from "@anthropic-ai/sdk/resources";
 
 type WizardState = Partial<{
   gotDirectoryPermission: boolean;
@@ -551,6 +553,21 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  function deleteDisabledSectionsAndClean(
+    sections: OutlineSection[]
+  ): OutlineSection[] {
+    return sections
+      .filter((section) => !section.disabled)
+      .map((section) => {
+        if (section.subsections)
+          section.subsections = deleteDisabledSectionsAndClean(
+            section.subsections
+          );
+        delete section.disabled;
+        return section;
+      });
+  }
+
   while (true) {
     if (!wizardState.generatedOutline) {
       console.log("No outline generated. Exiting. Run me again perhaps?");
@@ -641,23 +658,10 @@ async function runWizard() {
       flatListForDisplay.map((section) => section.name).join("\n") + "\n"
     );
 
-    function deleteDisabledSections(
-      sections: OutlineSection[]
-    ): OutlineSection[] {
-      return sections
-        .filter((section) => !section.disabled)
-        .map((section) => {
-          if (section.subsections)
-            section.subsections = deleteDisabledSections(section.subsections);
-          delete section.disabled;
-          return section;
-        });
-    }
-
     const outlineCopyForImprovements = JSON.parse(
       JSON.stringify(wizardState.generatedOutline)
     );
-    outlineCopyForImprovements.sections = deleteDisabledSections(
+    outlineCopyForImprovements.sections = deleteDisabledSectionsAndClean(
       outlineCopyForImprovements.sections
     );
 
@@ -702,6 +706,8 @@ async function runWizard() {
         if (!confirm({ message: "Couldn't regenerate. Continue anyway?" })) {
           console.log("You can run me again if you'd like!");
           return;
+        } else {
+          break;
         }
       }
     } else {
@@ -709,12 +715,70 @@ async function runWizard() {
     }
   }
 
+  if (!wizardState.generatedOutline) {
+    console.log("No outline generated. Exiting. Run me again perhaps?");
+    return;
+  }
+
+  function getPageWritingMessages(
+    sections: OutlineSection[],
+    levels: string[]
+  ): {
+    section: OutlineSection;
+    levels: string[];
+    messages: MessageParam[];
+  }[] {
+    return sections
+      .map((section) => {
+        const sectionMessages = {
+          section,
+          levels: levels.concat([section.permalink]),
+          messages: getPageGenerationInferenceMessages(
+            outlineQuestions,
+            wizardState.generatedOutline!,
+            section
+          ),
+        };
+
+        if (section.subsections)
+          return [
+            sectionMessages,
+            ...getPageWritingMessages(
+              section.subsections,
+              levels.concat([section.permalink])
+            ),
+          ];
+        else return [sectionMessages];
+      })
+      .flat();
+  }
+
+  const cleanedOutline = JSON.parse(
+    JSON.stringify(wizardState.generatedOutline)
+  );
+
+  cleanedOutline.sections = deleteDisabledSectionsAndClean(
+    cleanedOutline.sections
+  );
+
+  const pageWritingMessages = getPageWritingMessages(
+    cleanedOutline.sections,
+    []
+  );
+
+  const costs = CLAUDE_MODELS.map((model) =>
+    pageWritingMessages
+      .map((page) => getClaudeCosts(page.messages, 4096, model.model))
+      .reduce((a, b) => a + b, 0)
+  );
+
   wizardState.smarterModel = await select({
-    message: "We can finally start writing! Pick a model to generate content: ",
-    choices: CLAUDE_MODELS.map((model) => ({
+    message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
+    choices: CLAUDE_MODELS.map((model, index) => ({
       name: model.name,
       value: model.model,
-      description: model.pageDescription,
+      description:
+        model.pageDescription + " " + `(costs $${costs[index].toFixed(4)})`,
     })).concat(new Separator() as any),
     default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
   });
