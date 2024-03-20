@@ -5,8 +5,6 @@ packages/*/*.wasm
 *.a
 profile.json
 
-dist
-
 .env
 node_modules
 .envrc

@@ -1,11 +1,11 @@
+#!/usr/bin/env node
+
 import {
   CLAUDE_MODELS,
   EDITORS,
   LUMENTIS_FOLDER,
   lumentisFolderPath,
-  MAX_HEADING_CHAR_LENGTH,
   RUNNERS,
-  WIZARD_STATE_FILE,
   wizardStatePath,
 } from "./constants";
 import path from "path";
@@ -31,14 +31,7 @@ import {
   getTitleInferenceMessages,
 } from "./prompts";
 import { getClaudeCosts, runClaudeInference } from "./ai";
-import {
-  Outline,
-  OutlineSection,
-  ReadyToGeneratePage,
-  WizardState,
-} from "./types";
-import { getRequiredHeader } from "@anthropic-ai/sdk/core";
-import { MessageParam } from "@anthropic-ai/sdk/resources";
+import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 
 async function runWizard() {
@@ -259,7 +252,7 @@ async function runWizard() {
       const selectedAnswer: string = await select({
         message: "Pick your favorite or enter a new one: ",
         choices: titleOptionsResponse.response
-          .map((title) => ({
+          .map((title: string) => ({
             name: title,
             value: title,
           }))
@@ -314,7 +307,7 @@ async function runWizard() {
     if (themesOptionsResponse.success) {
       const selectedThemes = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: themesOptionsResponse.response.map((theme) => ({
+        choices: themesOptionsResponse.response.map((theme: string) => ({
           name: theme,
           value: theme,
           checked: true,
@@ -375,7 +368,7 @@ async function runWizard() {
     if (audienceOptionsResponse.success) {
       const selectedAudience: string[] = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: audienceOptionsResponse.response.map((audience) => ({
+        choices: audienceOptionsResponse.response.map((audience: string) => ({
           name: audience,
           value: audience,
           checked: true,
@@ -455,7 +448,10 @@ async function runWizard() {
         message: `Opening ${process.env.EDITOR} to answer:`,
         waitForUseInput: false,
         default: `Here are some questions: \n${questionsResponse.response
-          .map((question, index) => `${index + 1}. ${question}\n\nAnswer: \n\n`)
+          .map(
+            (question: string, index: number) =>
+              `${index + 1}. ${question}\n\nAnswer: \n\n`
+          )
           .join("\n")}`,
       });
 

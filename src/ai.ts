@@ -118,7 +118,7 @@ export async function runClaudeInference(
 
     return {
       success: false,
-      error: err.toString(),
+      error: (err as Error).toString(),
     };
   }
 }

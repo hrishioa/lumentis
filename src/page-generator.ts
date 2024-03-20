@@ -250,6 +250,8 @@ export async function generatePages(
   }
 
   console.log(
-    `\n\nAND WE'RE DONE! Run \`${preferredRunner.command} run dev\` to start the docs server once you quit. You can always rerun Lumentis to make changes.`
+    `\n\nAND WE'RE DONE! Run \`${preferredRunner.command} run dev\` to start the docs server once you quit. You can always rerun Lumentis to make changes.
+
+    You can learn more about Nextra (what we use for our theme) here: https://nextra.site/docs/docs-theme/start`
   );
 }
