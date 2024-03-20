@@ -33,7 +33,31 @@ export const EDITORS = [
   { name: "nano", command: "nano" },
   { name: "vim but know you can never leave", command: "vim" },
   { name: "emacs", command: "emacs" },
+  // TODO: We should work very hard to re-enable these
   // { name: "vscode", command: "code" },
   // { name: "zed", command: "zed" },
   // { name: "sublime", command: "subl" },
+];
+
+export const RUNNERS = [
+  {
+    name: "bun",
+    command: "bun",
+    installPrefix: "add",
+  },
+  {
+    name: "npm",
+    command: "npm",
+    installPrefix: "install",
+  },
+  {
+    name: "yarn",
+    command: "yarn",
+    installPrefix: "add",
+  },
+  {
+    name: "pnpm",
+    command: "pnpm",
+    installPrefix: "add",
+  },
 ];

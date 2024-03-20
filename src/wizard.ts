@@ -4,6 +4,7 @@ import {
   LUMENTIS_FOLDER,
   lumentisFolderPath,
   MAX_HEADING_CHAR_LENGTH,
+  RUNNERS,
   WIZARD_STATE_FILE,
   wizardStatePath,
 } from "./constants";
@@ -18,7 +19,7 @@ import {
   password,
   checkbox,
 } from "@inquirer/prompts";
-import { isEditorInstalled } from "./utils";
+import { isCommandAvailable } from "./utils";
 import {
   getAudienceInferenceMessages,
   getDescriptionInferenceMessages,
@@ -30,29 +31,10 @@ import {
   getTitleInferenceMessages,
 } from "./prompts";
 import { getClaudeCosts, runClaudeInference } from "./ai";
-import { Outline, OutlineSection } from "./types";
+import { Outline, OutlineSection, WizardState } from "./types";
 import { getRequiredHeader } from "@anthropic-ai/sdk/core";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
-
-type WizardState = Partial<{
-  gotDirectoryPermission: boolean;
-  smarterModel: string;
-  streamToConsole: boolean;
-  primarySourceFilename: string;
-  loadedPrimarySource: string;
-  anthropicKey: string;
-  description: string;
-  title: string;
-  coreThemes: string;
-  preferredEditor: string;
-  intendedAudience: string;
-  ambiguityExplained: string;
-  writingExampleFilename: string;
-  writingExample: string;
-  outlinePrimaryPrompt: string;
-  generatedOutline: Outline;
-  pageGenerationModel: string;
-}>;
+import { idempotentlySetupNextraDocs } from "./page-generator";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -142,7 +124,7 @@ async function runWizard() {
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
       choices: EDITORS.filter((editor) =>
-        isEditorInstalled(editor.command)
+        isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
         value: editor.command,
@@ -441,7 +423,7 @@ async function runWizard() {
           message:
             "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
           choices: EDITORS.filter((editor) =>
-            isEditorInstalled(editor.command)
+            isCommandAvailable(editor.command)
           ).map((editor) => ({
             name: editor.name,
             value: editor.command,
@@ -784,6 +766,49 @@ async function runWizard() {
   });
 
   saveState(wizardState);
+
+  if (!wizardState.preferredRunnerForNextra) {
+    wizardState.preferredRunnerForNextra = await select({
+      message:
+        "Seems we haven't set up the scaffold yet. Which runner do you prefer? Bun would be fastest if you have it.",
+      choices: RUNNERS.filter((editor) =>
+        isCommandAvailable(editor.command)
+      ).map((editor) => ({
+        name: editor.name,
+        value: editor.command,
+      })),
+      default: "npm",
+    });
+  }
+
+  if (!wizardState.preferredRunnerForNextra) {
+    console.log(
+      "No runner selected - Exiting. Run me again after installing something. You can install bun with `curl -fsSL https://bun.sh/install | bash`"
+    );
+    return;
+  }
+
+  saveState(wizardState);
+
+  const docsFolder = process.cwd();
+
+  const overwrite =
+    (fs.existsSync(path.join(docsFolder, "pages")) &&
+      (await confirm({
+        message:
+          "There seem to already be a pages folder. Do you want us not to overwrite anything we find? ",
+        default: false,
+        transformer: (answer) => (answer ? "👍" : "👎"),
+      }))) ||
+    false;
+
+  idempotentlySetupNextraDocs(
+    docsFolder,
+    RUNNERS.find(
+      (runner) => runner.command === wizardState.preferredRunnerForNextra
+    )!,
+    wizardState
+  );
 }
 
 runWizard();
