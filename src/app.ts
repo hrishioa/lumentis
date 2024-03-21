@@ -838,7 +838,7 @@ async function runWizard() {
   }
 
   const finalCheck = await confirm({
-    message: "Ready to start? ",
+    message: "#######\n\nReady to start? ",
     default: true,
     transformer: (answer) => (answer ? "👍" : "👎"),
   });

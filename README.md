@@ -8,21 +8,17 @@
 
 <h3 align="center">Generate beautiful docs from your transcripts and unstructured information with a single command.</h3>
 
-<div align="center">
+A simple way to generate comprehensive, easy-to-skim docs from your meeting transcripts and large documents.
 
-  [![Twitter Follow](https://img.shields.io/twitter/follow/hrishi?style=social)](https://twitter.com/hrishioa)
+[![Twitter Follow](https://img.shields.io/twitter/follow/hrishi?style=social)](https://twitter.com/hrishioa)
 
 </div>
-
-
 
 <div align="center">
 
 ![lumentis](https://github.com/hrishioa/lumentis/assets/973967/cd16bc41-bd8a-40b6-97b0-c3b57d4650cb)
 
 </div>
-
-
 
 ## How to use
 
@@ -35,8 +31,6 @@
 
 ## Examples
 
-
-
 Lumentis lets you swap models between stages. Here's some docs exactly as Lumentis generated them, no editing. I just hit Enter a few times.
 
 1. **[The Feynman Lectures on Physics](https://feynman-lectures.vercel.app/)** - taken from the [5 hour Feynman Lectures](https://www.youtube.com/watch?v=kEx-gRfuhhk), this is Sonnet doing the hard work for 72 cents, and Haiku writing it out for 38 cents.
@@ -46,16 +40,17 @@ Lumentis lets you swap models between stages. Here's some docs exactly as Lument
 
 ## Features
 
-* Cost before run: Lumentis will dynamically tell you what each operation costs.
-* Switch models: Use a smarter model to do the hard parts, and a cheaper model for long-form work. See the examples.
-* Easy to change: Ctrl+C at any time and restart. Lumentis remembers your responses, and lets you change them.
-* Everything in the open: want to know how it works? Check the `.lumentis` folder to see every message and response to the AI.
-* Super clean: Other than `.lumentis` with the prompts and state, you have a clean project to do anything with. Git/Vercel/Camera ready.
-* Super fast: (If you run with `bun`. Can't vouch for npm.)
+- Cost before run: Lumentis will dynamically tell you what each operation costs.
+- Switch models: Use a smarter model to do the hard parts, and a cheaper model for long-form work. See the examples.
+- Easy to change: Ctrl+C at any time and restart. Lumentis remembers your responses, and lets you change them.
+- Everything in the open: want to know how it works? Check the `.lumentis` folder to see every message and response to the AI.
+- Super clean: Other than `.lumentis` with the prompts and state, you have a clean project to do anything with. Git/Vercel/Camera ready.
+- Super fast: (If you run with `bun`. Can't vouch for npm.)
 
 ## How it works
 
 Lumentis reads your transcript and:
+
 1. Asks you some questions to understand the themes and audience. Also to surf the latent space (ask me about it)
 2. Generates an outline and asks you to select what you want to keep.
 3. Auto generates structure from the information and further refines it with your input, while self-healing things.
@@ -79,6 +74,7 @@ cd lumentis
 bun install
 bun run run
 ```
+
 Using bun because it's fast. You can also use npm or yarn if you prefer.
 
 ## How to help

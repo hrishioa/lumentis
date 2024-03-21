@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
-import { exec, execSync, spawn } from "child_process";
+import { exec, execSync } from "child_process";
 import { ReadyToGeneratePage, WizardState } from "./types";
 import { runClaudeInference } from "./ai";
 
@@ -9,6 +9,11 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
   let packageJSON = fs.existsSync(path.join(directory, "package.json"))
     ? JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf-8"))
     : {};
+
+  console.log(
+    "Looking for package.json in ",
+    path.join(directory, "package.json")
+  );
 
   packageJSON = {
     ...packageJSON,
@@ -146,7 +151,7 @@ export function idempotentlySetupNextraDocs(
 
   try {
     execSync(
-      `${runner.command} ${runner.installPrefix} react react-dom nextra nextra-theme-docs`,
+      `${runner.command} ${runner.installPrefix} react react-dom next nextra nextra-theme-docs typescript @types/node`,
       {
         cwd: directory,
         stdio: "inherit",
@@ -209,6 +214,8 @@ export async function generatePages(
     );
 
     if (!metaJSON[permalink]) {
+      // TODO: Need this damn monkeypatch because Nextra doesn't
+      // seem to support nested pages at the top level
       metaJSON[permalink] = page.section.title;
       if (i === 1) {
         if (
@@ -216,8 +223,17 @@ export async function generatePages(
             (p) =>
               p.levels.length > 1 && p.levels[0] === pages[0].section.permalink
           )
-        )
-          metaJSON[pages[0].section.permalink] = "Basics";
+        ) {
+          fs.writeFileSync(
+            path.join(pagesFolder, "_meta.json"),
+            JSON.stringify({
+              ...JSON.parse(
+                fs.readFileSync(path.join(pagesFolder, "_meta.json"), "utf-8")
+              ),
+              [pages[0].section.permalink]: "Basics",
+            })
+          );
+        }
       }
 
       fs.writeFileSync(
@@ -229,7 +245,7 @@ export async function generatePages(
     const pagePath = path.join(pageFolder, permalink + ".mdx");
 
     if (!wizardState.overwritePages && fs.existsSync(pagePath)) {
-      console.log("Page already exists, skipping...");
+      console.log(`${page.section.title} already exists, skipping...`);
       continue;
     }
 
