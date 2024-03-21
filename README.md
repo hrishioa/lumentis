@@ -14,6 +14,12 @@
 
 </div>
 
+
+
+https://github.com/hrishioa/lumentis/assets/973967/19c37225-f8cf-4ab9-8432-452a9d5e225c
+
+
+
 ## How to use
 
 1. Run `npx lumentis` in an empty directory. That's really it. You can skip the rest of this README.
