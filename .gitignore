@@ -4,7 +4,6 @@ packages/*/*.wasm
 *.o
 *.a
 profile.json
-
 dist
 
 .env
