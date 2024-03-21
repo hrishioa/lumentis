@@ -16,7 +16,11 @@
 
 
 
-https://github.com/hrishioa/lumentis/assets/973967/19c37225-f8cf-4ab9-8432-452a9d5e225c
+<div align="center">
+
+![lumentis](https://github.com/hrishioa/lumentis/assets/973967/cd16bc41-bd8a-40b6-97b0-c3b57d4650cb)
+
+</div>
 
 
 
@@ -30,6 +34,8 @@ https://github.com/hrishioa/lumentis/assets/973967/19c37225-f8cf-4ab9-8432-452a9
 6. Get something ready to deploy to [Vercel](https://vercel.com) with no changes.
 
 ## Examples
+
+
 
 Lumentis lets you swap models between stages. Here's some docs exactly as Lumentis generated them, no editing. I just hit Enter a few times.
 
