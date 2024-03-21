@@ -125,6 +125,8 @@ myscript.sh
 cold-jsc-start
 cold-jsc-start.d
 
+bun.lockb
+
 /testdir
 /test.ts
 /test.js
