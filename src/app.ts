@@ -305,8 +305,9 @@ async function runWizard() {
   const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
   wizardState.faviconUrl = await input({
     message:
-      "Choose your own favicon! Otherwise the default will be: 📄\nPlease provide a URL only.",
+      "Choose your own favicon! \nPlease provide a URL only.",
     default: "https://static.vecteezy.com/system/resources/previews/006/692/271/non_2x/document-icon-template-black-color-editable-document-icon-symbol-flat-illustration-for-graphic-and-web-design-free-vector.jpg",
+    // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
         console.log( "hi")
