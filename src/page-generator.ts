@@ -23,7 +23,8 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
     scripts: {
       ...((packageJSON && packageJSON.scripts) || {}),
       // dev: "URL=http://localhost:3000 && (open $URL || cmd.exe /c start $URL) && next dev",
-      dev: "next dev -p 5656 & node start.js",
+      devstart: "next dev -p 5656 & node start.js",
+      dev: "next dev -p 5656",
       build: "next build",
       start: "next start",
     },
@@ -43,8 +44,7 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
         themeConfig: "./theme.config.jsx",
         titleSuffix:
         "${wizardState.title}",
-      })(),
-      distDir: "dist",
+      })()
     };`
   );
 
@@ -60,6 +60,16 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
       },
       feedback: {
         content: null,
+      },
+      footer: {
+        text: (
+          <>
+            Made with 🫶 by&nbsp;
+            <a href="https://twitter.com/hrishioa" target="_blank">
+              Hrishi - say hi!
+            </a>
+          </>
+        ),
       },
       head: (
         <>
@@ -184,7 +194,7 @@ export async function generatePages(
   )!;
 
   if (startNextra) {
-    const devProcess = exec(`${preferredRunner.command} run dev`, {
+    const devProcess = exec(`${preferredRunner.command} run devstart`, {
       cwd: path.join(pagesFolder, ".."),
       // stdio: "ignore",
       // detached: true,
@@ -273,6 +283,8 @@ export async function generatePages(
   console.log(
     `\n\nAND WE'RE DONE! Run \`${preferredRunner.command} run dev\` to start the docs server once you quit. You can always rerun Lumentis to make changes.
 
-    You can learn more about Nextra (what we use for our theme) here: https://nextra.site/docs/docs-theme/start`
+    You can learn more about Nextra (what we use for our theme) here: https://nextra.site/docs/docs-theme/start.
+
+    If this helped (or for support) do find https://hrishioa/lumentis and drop a star!`
   );
 }

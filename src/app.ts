@@ -404,7 +404,7 @@ async function runWizard() {
   const questionPermission = await confirm({
     message: `Are you okay ${
       wizardState.ambiguityExplained ? "re" : ""
-    }answering some questionsabout things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
       questionsMessages,
       2048,
       wizardState.smarterModel
@@ -677,6 +677,8 @@ async function runWizard() {
         ".".repeat(3000)
       );
 
+    if (!wizardState.outlineComments) wizardState.outlineComments = "";
+
     const newSections = await input({
       message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getClaudeCosts(
         regenerateOutlineInferenceMessages,
@@ -686,11 +688,15 @@ async function runWizard() {
     });
 
     if (newSections.trim()) {
+      wizardState.outlineComments += "\n" + newSections;
+
+      saveState(wizardState);
+
       regenerateOutlineInferenceMessages =
         getOutlineRegenerationInferenceMessages(
           outlineQuestions,
           outlineCopyForImprovements,
-          newSections
+          wizardState.outlineComments
         );
 
       const newSectionsResponse = await runClaudeInference(
@@ -725,9 +731,16 @@ async function runWizard() {
     return;
   }
 
+  wizardState.skipDiagrams = await confirm({
+    message: "Do you want to skip diagrams? (Recommended for now): ",
+    default: wizardState.skipDiagrams || true,
+    transformer: (answer) => (answer ? "👍" : "👎"),
+  });
+
   function getPageWritingMessages(
     sections: OutlineSection[],
-    levels: string[]
+    levels: string[],
+    skipDiagrams: boolean
   ): ReadyToGeneratePage[] {
     return sections
       .map((section) => {
@@ -737,7 +750,8 @@ async function runWizard() {
           messages: getPageGenerationInferenceMessages(
             outlineQuestions,
             wizardState.generatedOutline!,
-            section
+            section,
+            skipDiagrams
           ),
         };
 
@@ -746,7 +760,8 @@ async function runWizard() {
             sectionMessages,
             ...getPageWritingMessages(
               section.subsections,
-              levels.concat([section.permalink])
+              levels.concat([section.permalink]),
+              skipDiagrams
             ),
           ];
         else return [sectionMessages];
@@ -762,11 +777,12 @@ async function runWizard() {
     cleanedOutline.sections
   );
 
-  console.log("\nCalculating costs...\n");
+  console.log("\nCalculating final writing costs...\n");
 
   const pageWritingMessages = getPageWritingMessages(
     cleanedOutline.sections,
-    []
+    [],
+    wizardState.skipDiagrams
   );
 
   const costs = CLAUDE_MODELS.map((model) =>
@@ -847,6 +863,10 @@ async function runWizard() {
     console.log("No problem! You know where to find me.");
     return;
   }
+
+  console.log(
+    "\n\nAnd we're off! If this helps do find https://hrishioa/lumentis and drop a star!\n\n"
+  );
 
   await generatePages(
     true,

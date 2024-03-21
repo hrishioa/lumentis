@@ -188,7 +188,7 @@ ${writingExample ? `Here's an example of the kind of writing we're looking for:
 ${writingExample}
 </WritingExample>` : ""}
 
-Let's use PrimarySource to generate good documentation. Can you generate a JSON of the outline of this documentation (sections, subsections, permalinks, etc) following this typespec?
+Let's use PrimarySource to generate good documentation. Can you generate a JSON of the outline of this documentation (sections, subsections, permalinks, etc) following this typespec? Ideally the first section doens't have any subsections.
 
 \`\`\`typescript
 type OutlineSection = {
@@ -211,11 +211,40 @@ type Outline = {
   ];
 }
 
+// prettier-ignore
+const writingGuidelines = [
+`Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
+<Steps>
+### Step 1
+
+Contents
+
+### Step 2
+
+Contents
+</Steps>`,
+`Write only the section, no need to talk to me when you're writing it.`,
+`Write it as an expert in the themes, but for the intended audience.`,
+`Don't put mdx code blocks around the output, just start writing.`,
+`Presume that the other sections are written.`,
+`Be casually direct, confident and straightforward. Use appropriate examples when needed.`,
+`Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).`,
+`Provide examples when needed from your knowledge.`,
+`Use bullet points to simplify when possible.`,
+`Make sure to start headings in each section and subsection at the top level (#).`,
+`Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX].`
+]
+
 export function getPageGenerationInferenceMessages(
   outlineGenerationMessages: MessageParam[],
   selectedOutline: Outline,
-  selectedSection: OutlineSection
+  selectedSection: OutlineSection,
+  skipDiagrams: boolean
 ): MessageParam[] {
+  const actualWritingGuidelines = skipDiagrams
+    ? writingGuidelines.slice(0, -1)
+    : writingGuidelines;
+
   return [
     ...outlineGenerationMessages.slice(0, -1),
     {
@@ -226,29 +255,10 @@ export function getPageGenerationInferenceMessages(
     {
       role: 'user',
       content:
-`Now we're going to specifically write the part ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
+`Now we're going to specifically write the section ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
 
-1. Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
-<Steps>
-### Step 1
-
-Contents
-
-### Step 2
-
-Contents
-</Steps>
-2. Write only the section, no need to talk to me when you're writing it.
-3. Write it as an expert in the themes, but for the intended audience.
-5. Don't put mdx code blocks around the output, just start writing.
-6. Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX].
-7. Presume that the other sections are written.
-8. Be casually direct, confident and straightforward. Use appropriate examples when needed.
-9. Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).
-10. Provide examples when needed from your knowledge.
-11. Use bullet points to simplify when possible.
-12. Make sure to start headings in each section and subsection at the top level (#).
-13. When asked to write a section, you don't need to write the subsections inside it. Presume they have their own pages.`
+${actualWritingGuidelines.map((g, i) => `${i + 1}. ${g}`).join("\n")}
+${selectedSection.subsections ? `${actualWritingGuidelines.length + 1}The subsections ${selectedSection.subsections.map(s => s.title).join(", ")} will be written later, and don't need to elaborated here.` : ""}`
     },
   ];
 }

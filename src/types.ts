@@ -37,7 +37,9 @@ export type WizardState = Partial<{
   writingExample: string;
   outlinePrimaryPrompt: string;
   generatedOutline: Outline;
+  outlineComments: string;
   pageGenerationModel: string;
+  skipDiagrams: boolean;
   preferredRunnerForNextra: string;
   overwritePages: boolean;
 }>;
