@@ -1,9 +1,10 @@
-import fs from "fs";
-import path from "path";
-import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
-import { exec, execSync } from "child_process";
-import { ReadyToGeneratePage, WizardState } from "./types";
+import { exec, execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+
 import { runClaudeInference } from "./ai";
+import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
+import { ReadyToGeneratePage, WizardState } from "./types";
 
 function writeConfigFiles(directory: string, wizardState: WizardState) {
   let packageJSON = fs.existsSync(path.join(directory, "package.json"))
@@ -21,7 +22,7 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
     description: wizardState.description,
     version: "0.0.1",
     scripts: {
-      ...((packageJSON && packageJSON.scripts) || {}),
+      ...(packageJSON?.scripts || {}),
       // dev: "URL=http://localhost:3000 && (open $URL || cmd.exe /c start $URL) && next dev",
       devstart: "next dev -p 5656 & node start.js",
       dev: "next dev -p 5656",
@@ -189,9 +190,15 @@ export async function generatePages(
     throw new Error(`Pages folder ${pagesFolder} does not exist`);
   }
 
-  const preferredRunner = RUNNERS.find(
-    (runner) => runner.command === wizardState.preferredRunnerForNextra
-  )!;
+  const preferredRunner = RUNNERS.find((runner) => {
+    return runner.command === wizardState.preferredRunnerForNextra;
+  });
+
+  if (!preferredRunner) {
+    throw new Error(
+      `Preferred runner for \`nextra\` not found: ${wizardState.preferredRunnerForNextra}`,
+    );
+  }
 
   if (startNextra) {
     const devProcess = exec(`${preferredRunner.command} run devstart`, {

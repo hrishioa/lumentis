@@ -1,4 +1,4 @@
-import path from "path";
+import path from "node:path";
 
 export const LUMENTIS_FOLDER = ".lumentis";
 export const WIZARD_STATE_FILE = "wizard.json";
@@ -30,7 +30,7 @@ export const CLAUDE_MODELS = [
     smarterDescription: "Cheapest, not preferred for this stage",
     pageDescription: "Fast and cheap - get what we pay for",
   },
-];
+] as const;
 
 export const EDITORS = [
   { name: "nano", command: "nano" },
@@ -40,7 +40,7 @@ export const EDITORS = [
   // { name: "vscode", command: "code" },
   // { name: "zed", command: "zed" },
   // { name: "sublime", command: "subl" },
-];
+] as const;
 
 export const RUNNERS = [
   {
@@ -63,4 +63,4 @@ export const RUNNERS = [
     command: "pnpm",
     installPrefix: "add",
   },
-];
+] as const;

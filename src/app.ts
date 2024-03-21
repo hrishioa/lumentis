@@ -73,11 +73,14 @@ async function runWizard() {
   wizardState.smarterModel = await select({
     message:
       "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
-    choices: CLAUDE_MODELS.map((model) => ({
-      name: model.name,
-      value: model.model,
-      description: model.smarterDescription,
-    })).concat(new Separator() as any),
+    choices: [
+      ...CLAUDE_MODELS.map((model) => ({
+        name: model.name,
+        value: model.model,
+        description: model.smarterDescription,
+      })),
+      new Separator(),
+    ],
     default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
   });
 
@@ -585,53 +588,48 @@ async function runWizard() {
     function flattenOutline(
       sections: OutlineSection[],
       levels: string[],
-      hideDisabled = false
+      hideDisabled = false,
     ): {
       name: string;
       value: string;
       checked: boolean;
     }[] {
       let counter = 0;
-      return sections
-        .map((section, index) => {
-          if (hideDisabled && section.disabled) return [];
-          counter++;
+      return sections.flatMap((section, index) => {
+        if (hideDisabled && section.disabled) return [];
+        counter++;
 
-          const flattened = [
-            {
-              name:
-                "-".repeat(levels.length + 1) +
-                " " +
-                counter +
-                ". " +
-                section.title,
-              value: levels.concat([section.permalink]).join("->"),
-              checked: !section.disabled,
-            },
-          ];
-          if (section.subsections)
-            return flattened.concat(
-              flattenOutline(
-                section.subsections,
-                levels.concat([section.permalink]),
-                hideDisabled
-              )
-            );
-          return flattened;
-        })
-        .flat();
+        const flattened = [
+          {
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
+              section.title
+            }`,
+            value: levels.concat([section.permalink]).join("->"),
+            checked: !section.disabled,
+          },
+        ];
+        if (section.subsections)
+          return flattened.concat(
+            flattenOutline(
+              section.subsections,
+              levels.concat([section.permalink]),
+              hideDisabled,
+            ),
+          );
+        return flattened;
+      });
     }
 
     const outlineFlatList = flattenOutline(
       wizardState.generatedOutline.sections,
-      []
+      [],
     );
 
     const selectedSections = await checkbox({
       required: true,
       pageSize: 15,
       message: "Pick sections you want to keep: ",
-      choices: outlineFlatList.concat([new Separator() as any]),
+      choices: [...outlineFlatList, new Separator()],
     });
 
     function setDisabledSections(sections: OutlineSection[], levels: string[]) {
@@ -742,31 +740,30 @@ async function runWizard() {
     levels: string[],
     skipDiagrams: boolean
   ): ReadyToGeneratePage[] {
-    return sections
-      .map((section) => {
-        const sectionMessages = {
+    return sections.flatMap((section) => {
+      const sectionMessages = {
+        section,
+        levels: levels.concat([section.permalink]),
+        messages: getPageGenerationInferenceMessages(
+          outlineQuestions,
+          // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
+          wizardState.generatedOutline!,
           section,
-          levels: levels.concat([section.permalink]),
-          messages: getPageGenerationInferenceMessages(
-            outlineQuestions,
-            wizardState.generatedOutline!,
-            section,
-            skipDiagrams
-          ),
-        };
+          skipDiagrams,
+        ),
+      };
 
-        if (section.subsections)
-          return [
-            sectionMessages,
-            ...getPageWritingMessages(
-              section.subsections,
-              levels.concat([section.permalink]),
-              skipDiagrams
-            ),
-          ];
-        else return [sectionMessages];
-      })
-      .flat();
+      if (section.subsections)
+        return [
+          sectionMessages,
+          ...getPageWritingMessages(
+            section.subsections,
+            levels.concat([section.permalink]),
+            skipDiagrams,
+          ),
+        ];
+      else return [sectionMessages];
+    });
   }
 
   const cleanedOutline = JSON.parse(
@@ -782,23 +779,27 @@ async function runWizard() {
   const pageWritingMessages = getPageWritingMessages(
     cleanedOutline.sections,
     [],
-    wizardState.skipDiagrams
+    wizardState.skipDiagrams,
   );
 
   const costs = CLAUDE_MODELS.map((model) =>
     pageWritingMessages
       .map((page) => getClaudeCosts(page.messages, 4096, model.model))
-      .reduce((a, b) => a + b, 0)
+      .reduce((a, b) => a + b, 0),
   );
 
   wizardState.pageGenerationModel = await select({
     message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
-    choices: CLAUDE_MODELS.map((model, index) => ({
-      name: model.name,
-      value: model.model,
-      description:
-        model.pageDescription + " " + `(costs $${costs[index].toFixed(4)})`,
-    })).concat(new Separator() as any),
+    choices: [
+      ...CLAUDE_MODELS.map((model, index) => ({
+        name: model.name,
+        value: model.model,
+        description: `${model.pageDescription} (costs $${costs[index].toFixed(
+          4,
+        )})`,
+      })),
+      new Separator(),
+    ],
     default:
       wizardState.pageGenerationModel ||
       CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
@@ -846,6 +847,7 @@ async function runWizard() {
   if (!fs.existsSync(path.join(docsFolder, "pages"))) {
     idempotentlySetupNextraDocs(
       docsFolder,
+      // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
       RUNNERS.find(
         (runner) => runner.command === wizardState.preferredRunnerForNextra
       )!,
