@@ -124,6 +124,7 @@ async function runWizard() {
     },
   });
 
+
   if (fileName.trim()) {
     wizardState.primarySourceFilename = path.normalize(
       fileName
@@ -306,7 +307,7 @@ async function runWizard() {
   wizardState.faviconUrl = await input({
     message:
       "Choose your own favicon! \nPlease provide a URL only.",
-    default: "https://static.vecteezy.com/system/resources/previews/006/692/271/non_2x/document-icon-template-black-color-editable-document-icon-symbol-flat-illustration-for-graphic-and-web-design-free-vector.jpg",
+    default: "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
