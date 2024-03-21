@@ -17,10 +17,11 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
 
   packageJSON = {
     ...packageJSON,
-    name: wizardState.title + " - made with Lumentis",
+    name: (wizardState.title?.split(/\s/)[0] || "Docs") + "-with-lumentis",
     description: wizardState.description,
     version: "0.0.1",
     scripts: {
+      ...((packageJSON && packageJSON.scripts) || {}),
       // dev: "URL=http://localhost:3000 && (open $URL || cmd.exe /c start $URL) && next dev",
       dev: "next dev -p 5656 & node start.js",
       build: "next build",
@@ -36,11 +37,15 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
 
   fs.writeFileSync(
     path.join(directory, "next.config.js"),
-    `module.exports = require("nextra")({
-      theme: "nextra-theme-docs",
-      themeConfig: "./theme.config.jsx",
-      titleSuffix: "${wizardState.title}",
-    })();`
+    `module.exports = {
+      ...require("nextra")({
+        theme: "nextra-theme-docs",
+        themeConfig: "./theme.config.jsx",
+        titleSuffix:
+        "${wizardState.title}",
+      })(),
+      distDir: "dist",
+    };`
   );
 
   fs.writeFileSync(
