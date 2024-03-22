@@ -6,11 +6,11 @@ export function getTitleInferenceMessages(
   description: string
 ): MessageParam[] {
   return [
-    // biome-ignore format: listen you compiler simps, we are prompt engineers, we know what we're doing here
+    // prettier-ignore
     {
-      role: "user",
-      content: `
-<PrimarySource>
+      role: 'user',
+      content:
+`<PrimarySource>
 ${primarySource}
 </PrimarySource>
 
@@ -20,8 +20,8 @@ Please generate up to 10 possible names for documentation we want to build, for 
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -30,11 +30,11 @@ export function getAudienceInferenceMessages(
   description: string
 ): MessageParam[] {
   return [
-    // biome-ignore format: listen you compiler simps, we are prompt engineers, we know what we're doing here
+    // prettier-ignore
     {
-      role: "user",
-      content: `
-<PrimarySource>
+      role: 'user',
+      content:
+`<PrimarySource>
 ${primarySource}
 </PrimarySource>
 
@@ -44,8 +44,8 @@ Please generate up to 10 words describing the intended audience for creating doc
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -53,11 +53,11 @@ export function getThemeInferenceMessages(
   primarySource: string
 ): MessageParam[] {
   return [
-    // biome-ignore format: listen you compiler simps, we are prompt engineers, we know what we're doing here
+    // prettier-ignore
     {
-      role: "user",
-      content: `
-<PrimarySource>
+      role: 'user',
+      content:
+`<PrimarySource>
 ${primarySource}
 </PrimarySource>
 
@@ -65,8 +65,8 @@ Please generate up to 10 possible keywords referring to industries, technologies
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -76,15 +76,15 @@ export function getDescriptionInferenceMessages(
   return [
     // prettier-ignore
     {
-      role: "user",
-      content: `
-<PrimarySource>
+      role: 'user',
+      content:
+`<PrimarySource>
 ${primarySource}
 </PrimarySource>
 
 Please provide a three sentence description of the information in PrimarySource. Is this a conversation transcript, an article, etc? What is it about? what are the key themes and who is this likely by and for? No newlines.
 `
-    }
+    },
   ];
 }
 
@@ -94,32 +94,28 @@ export function getQuestionsInferenceMessages(
   alreadyAnsweredQuestions?: string
 ): MessageParam[] {
   return [
-    // biome-ignore format: listen you compiler simps, we are prompt engineers, we know what we're doing here
+    // prettier-ignore
     {
-      role: "user",
-      content: `
-<PrimarySource>
+      role: 'user',
+      content:
+`<PrimarySource>
 ${primarySource}
 </PrimarySource>
 
 ${description}
 
-${
-  alreadyAnsweredQuestions
-    ? `Here are some questions already asked and partially answered.
+${alreadyAnsweredQuestions ? `Here are some questions already asked and partially answered.
 <PastQuestions>
 ${alreadyAnsweredQuestions}
-</PastQuestions>`
-    : ""
-}
+</PastQuestions>` : ''}
 
 We want to build proper comprehensive docs for what's in PrimarySource. Can you give me a JSON array of strings, of 10 questions about things that might be confusing, need more explanation, or color?
 `
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -132,19 +128,20 @@ export function getOutlineRegenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline)
+      content: JSON.stringify(selectedOutline),
     },
-    // biome-ignore format: listen you compiler simps, we are prompt engineers, we know what we're doing here
+    // prettier-ignore
     {
-      role: "user",
-      content: `Can you regenerate the outline with the following requests or new sections? ${newSections}
+      role: 'user',
+      content:
+`Can you regenerate the outline with the following requests or new sections? ${newSections}
 Follow the Outline typespec.
 `
     },
     {
       role: "assistant",
-      content: "{"
-    }
+      content: "{",
+    },
   ];
 }
 
@@ -160,8 +157,9 @@ export function getOutlineInferenceMessages(
   return [
     // prettier-ignore
     {
-      role: "user",
-      content: `The following is some information about ${title}.
+      role: 'user',
+      content:
+`The following is some information about ${title}.
 
 <PrimarySource>
 ${primarySource}
@@ -169,15 +167,11 @@ ${primarySource}
 
 ${description}
 
-${
-  ambiguityExplained
-    ? `Here are some questions that can help with any ambiguity or things that need explaining in PrimarySource. Feel free to use your knowledge for the things I haven't answered.
+${ambiguityExplained ? `Here are some questions that can help with any ambiguity or things that need explaining in PrimarySource. Feel free to use your knowledge for the things I haven't answered.
 <Questions>
 ${ambiguityExplained}
 </Questions>
-`
-    : ""
-}
+` : ""}
 
 Here are some of the themes covered in PrimarySource:
 <Themes>
@@ -189,14 +183,10 @@ Here are the intended audience for the documentation:
 ${intendedAudience}
 </Audience>
 
-${
-  writingExample
-    ? `Here's an example of the kind of writing we're looking for:
+${writingExample ? `Here's an example of the kind of writing we're looking for:
 <WritingExample>
 ${writingExample}
-</WritingExample>`
-    : ""
-}
+</WritingExample>` : ""}
 
 Let's use PrimarySource to generate good documentation. Can you generate a JSON of the outline of this documentation (sections, subsections, permalinks, etc) following this typespec? Ideally the first section doens't have any subsections.
 
@@ -212,18 +202,18 @@ type Outline = {
   title: string;
   sections: OutlineSection[];
 };
-`
+`,
     },
     {
       role: "assistant",
-      content: "{"
-    }
+      content: "{",
+    },
   ];
 }
 
 // prettier-ignore
 const writingGuidelines = [
-  `Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
+`Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
 <Steps>
 ### Step 1
 
@@ -233,17 +223,17 @@ Contents
 
 Contents
 </Steps>`,
-  `Write only the section, no need to talk to me when you're writing it.`,
-  "Write it as an expert in the themes, but for the intended audience.",
-  `Don't put mdx code blocks around the output, just start writing.`,
-  "Presume that the other sections are written.",
-  "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
-  "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
-  "Provide examples when needed from your knowledge.",
-  "Use bullet points to simplify when possible.",
-  "Make sure to start headings in each section and subsection at the top level (#).",
-  `Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX].`
-];
+`Write only the section, no need to talk to me when you're writing it.`,
+`Write it as an expert in the themes, but for the intended audience.`,
+`Don't put mdx code blocks around the output, just start writing.`,
+`Presume that the other sections are written.`,
+`Be casually direct, confident and straightforward. Use appropriate examples when needed.`,
+`Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).`,
+`Provide examples when needed from your knowledge.`,
+`Use bullet points to simplify when possible.`,
+`Make sure to start headings in each section and subsection at the top level (#).`,
+`Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX].`
+]
 
 export function getPageGenerationInferenceMessages(
   outlineGenerationMessages: MessageParam[],
@@ -259,25 +249,16 @@ export function getPageGenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline)
+      content: JSON.stringify(selectedOutline),
     },
     // prettier-ignore
     {
-      role: "user",
-      content: `Now we're going to specifically write the section ${
-        selectedSection.title
-      } (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
+      role: 'user',
+      content:
+`Now we're going to specifically write the section ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
 
 ${actualWritingGuidelines.map((g, i) => `${i + 1}. ${g}`).join("\n")}
-${
-  selectedSection.subsections
-    ? `${
-        actualWritingGuidelines.length + 1
-      }The subsections ${selectedSection.subsections
-        .map((s) => s.title)
-        .join(", ")} will be written later, and don't need to elaborated here.`
-    : ""
-}`
-    }
+${selectedSection.subsections ? `${actualWritingGuidelines.length + 1}The subsections ${selectedSection.subsections.map(s => s.title).join(", ")} will be written later, and don't need to elaborated here.` : ""}`
+    },
   ];
 }

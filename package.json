@@ -29,8 +29,7 @@
   },
   "scripts": {
     "run": "bun src/app.ts",
-    "package": "tsup",
-    "check": "biome check --apply ."
+    "package": "tsup"
   },
   "files": ["dist"],
   "type": "module",

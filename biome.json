@@ -18,9 +18,6 @@
         "useImportType": "off",
         "useNodejsImportProtocol": "error",
         "useTemplate": "off"
-      },
-      "performance": {
-        "noDelete": "off"
       }
     }
   },
@@ -28,6 +25,7 @@
     "enabled": true,
     "indentWidth": 2,
     "indentStyle": "space",
+    "attributePosition": "multiline",
     "lineWidth": 80
   },
   "javascript": {
@@ -35,7 +33,7 @@
       "enabled": true,
       "semicolons": "always",
       "quoteStyle": "double",
-      "trailingComma": "none"
+      "attributePosition": "multiline"
     }
   }
 }

@@ -1,12 +1,12 @@
-import fs from "node:fs";
-import path from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { countTokens } from "@anthropic-ai/tokenizer";
+import Anthropic from "@anthropic-ai/sdk";
+import fs from "fs";
+import path from "path";
 import {
+  lumentisFolderPath,
   MESSAGES_FOLDER,
   NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
-  lumentisFolderPath
 } from "./constants";
 
 export async function runClaudeInference(
@@ -14,7 +14,7 @@ export async function runClaudeInference(
   model: string,
   maxOutputTokens: number,
   apiKey?: string,
-  streamToConsole = false,
+  streamToConsole: boolean = false,
   saveName?: string,
   jsonType?: "parse" | "started_array" | "started_object",
   saveToFilepath?: string,
@@ -36,12 +36,12 @@ export async function runClaudeInference(
       messages,
       model,
       max_tokens: maxOutputTokens,
-      stream: true
+      stream: true,
     });
 
-    let outputTokens = 0;
-    let fullMessage = "";
-    let diffToFlush = 0;
+    let outputTokens = 0,
+      fullMessage = "",
+      diffToFlush = 0;
 
     if (streamToConsole)
       process.stdout.write(
@@ -85,11 +85,11 @@ export async function runClaudeInference(
             .replace(/```/g, "")
             .trim();
         }
-      } else if (jsonType === "started_array") {
+      } else if (jsonType == "started_array") {
         fullMessage = "[" + fullMessage;
 
         fullMessage = fullMessage.split("```")[0];
-      } else if (jsonType === "started_object") {
+      } else if (jsonType == "started_object") {
         fullMessage = "{" + fullMessage;
 
         fullMessage = fullMessage.split("```")[0];
@@ -111,14 +111,14 @@ export async function runClaudeInference(
     return {
       success: true,
       outputTokens,
-      response: jsonType ? JSON.parse(fullMessage) : fullMessage
+      response: jsonType ? JSON.parse(fullMessage) : fullMessage,
     };
   } catch (err) {
     console.error(err);
 
     return {
       success: false,
-      error: (err as Error).toString()
+      error: (err as Error).toString(),
     };
   }
 }
@@ -153,16 +153,16 @@ function getClaudeCostsWithTokens(
   > = {
     "claude-3-opus-20240229": {
       inputTokensPerM: 15,
-      outputTokensPerM: 75
+      outputTokensPerM: 75,
     },
     "claude-3-sonnet-20240229": {
       inputTokensPerM: 3,
-      outputTokensPerM: 15
+      outputTokensPerM: 15,
     },
     "claude-3-haiku-20240307": {
       inputTokensPerM: 0.25,
-      outputTokensPerM: 1.25
-    }
+      outputTokensPerM: 1.25,
+    },
   };
 
   const prices = priceList[model];
