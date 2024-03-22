@@ -87,7 +87,6 @@ async function runWizard() {
 
   saveState(wizardState);
 
-
   // Ask to stream output to console
 
   wizardState.streamToConsole = await confirm({
@@ -123,7 +122,6 @@ async function runWizard() {
       return true;
     },
   });
-
 
   if (fileName.trim()) {
     wizardState.primarySourceFilename = path.normalize(
@@ -168,7 +166,6 @@ async function runWizard() {
 
   saveState(wizardState);
 
-
   // Ask for Anthropic key
 
   wizardState.anthropicKey =
@@ -191,9 +188,8 @@ async function runWizard() {
       },
     })) || undefined;
 
-
   // Ask for source description
-  
+
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
     wizardState.loadedPrimarySource
   );
@@ -243,7 +239,6 @@ async function runWizard() {
     wizardState.loadedPrimarySource,
     wizardState.description
   );
-
 
   // Ask for title
 
@@ -299,32 +294,26 @@ async function runWizard() {
 
   saveState(wizardState);
 
-
-  
   // Ask for favicon URL
 
-  const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+  const urlPattern =
+    /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
   wizardState.faviconUrl = await input({
-    message:
-      "Choose your own favicon! \nPlease provide a URL only.",
-    default: "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+    message: "Choose your own favicon! \nPlease provide a URL only.",
+    default:
+      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
-        console.log( "hi")
-        console.log(favicon_url)
+        console.log("hi");
+        console.log(favicon_url);
         return `Not a valid URL - ${favicon_url.trim()}. Try again.`;
-
       }
       return true;
     },
   });
 
-
   saveState(wizardState);
-
-
-
 
   // Ask for theme/keywords
 
@@ -516,7 +505,6 @@ async function runWizard() {
 
   saveState(wizardState);
 
-
   // Ask for writing style
 
   const writingExampleFilename = await input({
@@ -559,8 +547,6 @@ async function runWizard() {
   }
 
   saveState(wizardState);
-
-
 
   // Ask AI for outline
 
@@ -632,7 +618,6 @@ async function runWizard() {
         return section;
       });
   }
-
 
   // Actually generate the docs
 
@@ -795,7 +780,8 @@ async function runWizard() {
   }
 
   wizardState.skipDiagrams = await confirm({
-    message: "Do you want to skip diagrams? (Recommended for now): ",
+    message:
+      "Do you want to skip adding placeholders for diagrams? (Recommended for now): ",
     default: wizardState.skipDiagrams || true,
     transformer: (answer) => (answer ? "👍" : "👎"),
   });

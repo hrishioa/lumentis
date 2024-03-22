@@ -80,3 +80,7 @@ Using bun because it's fast. You can also use npm or yarn if you prefer.
 ## How to help
 
 Try it out and let me know the URL so I can add it here! There's also some badly organized things in `TODO.md` that I need to get around to.
+
+# Contributors
+
+1. [HebeHH](https://github.com/HebeHH) for adding favicons!
