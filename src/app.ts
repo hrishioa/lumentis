@@ -1,26 +1,27 @@
 #!/usr/bin/env node
 
+import fs from "node:fs";
+import path from "node:path";
+import {
+  Separator,
+  checkbox,
+  confirm,
+  editor,
+  input,
+  password,
+  select
+} from "@inquirer/prompts";
+import { getClaudeCosts, runClaudeInference } from "./ai";
 import {
   CLAUDE_MODELS,
   EDITORS,
   LUMENTIS_FOLDER,
-  lumentisFolderPath,
   RUNNERS,
-  wizardStatePath,
   WRITING_STYLE_SIZE_LIMIT,
+  lumentisFolderPath,
+  wizardStatePath
 } from "./constants";
-import path from "path";
-import fs from "fs";
-import {
-  confirm,
-  input,
-  select,
-  Separator,
-  editor,
-  password,
-  checkbox,
-} from "@inquirer/prompts";
-import { isCommandAvailable } from "./utils";
+import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
   getAudienceInferenceMessages,
   getDescriptionInferenceMessages,
@@ -29,11 +30,10 @@ import {
   getPageGenerationInferenceMessages,
   getQuestionsInferenceMessages,
   getThemeInferenceMessages,
-  getTitleInferenceMessages,
+  getTitleInferenceMessages
 } from "./prompts";
-import { getClaudeCosts, runClaudeInference } from "./ai";
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
+import { isCommandAvailable } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -47,7 +47,7 @@ async function runWizard() {
 
   // prettier-ignore
   console.log(
-`Welcome to Lumentis! Let's build you some docs. Some things to keep in mind:
+    `Welcome to Lumentis! Let's build you some docs. Some things to keep in mind:
 - I'll be saving config files (state, LLM messages) in a folder called ${LUMENTIS_FOLDER} in the current directory.
 - If you'd like to repeat any steps, Ctrl+C and just start over.
 `
@@ -59,7 +59,7 @@ async function runWizard() {
     wizardState.gotDirectoryPermission = await confirm({
       message: "Are you in a clean directory I can start saving things to?",
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎"),
+      transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!wizardState.gotDirectoryPermission) {
@@ -77,12 +77,15 @@ async function runWizard() {
   wizardState.smarterModel = await select({
     message:
       "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
-    choices: CLAUDE_MODELS.map((model) => ({
-      name: model.name,
-      value: model.model,
-      description: model.smarterDescription,
-    })).concat(new Separator() as any),
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
+    choices: [
+      ...CLAUDE_MODELS.map((model) => ({
+        name: model.name,
+        value: model.model,
+        description: model.smarterDescription
+      })),
+      new Separator()
+    ],
+    default: wizardState.smarterModel || CLAUDE_MODELS[0].model
   });
 
   saveState(wizardState);
@@ -93,7 +96,7 @@ async function runWizard() {
     message:
       "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
     default: wizardState.streamToConsole || false,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   saveState(wizardState);
@@ -107,8 +110,7 @@ async function runWizard() {
     default: wizardState.primarySourceFilename || undefined,
     validate: (filename) => {
       if (
-        filename &&
-        filename.trim() &&
+        filename?.trim() &&
         !fs.existsSync(
           path.normalize(
             filename
@@ -120,7 +122,7 @@ async function runWizard() {
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
-    },
+    }
   });
 
   if (fileName.trim()) {
@@ -145,9 +147,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command,
+        value: editor.command
       })),
-      default: wizardState.preferredEditor || EDITORS[0].command,
+      default: wizardState.preferredEditor || EDITORS[0].command
     });
 
     process.env.EDITOR = editorName;
@@ -158,7 +160,7 @@ async function runWizard() {
       validate: (input) => {
         if (!input.trim()) return "Please enter something - ideally a lot!";
         return true;
-      },
+      }
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
@@ -185,7 +187,7 @@ async function runWizard() {
 
         if (key.trim()) return `Your key didn't work. Try again?`;
         else return `The key in your env didn't work. Try again?`;
-      },
+      }
     })) || undefined;
 
   // Ask for source description
@@ -200,7 +202,7 @@ async function runWizard() {
       700,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.description || undefined,
+    default: wizardState.description || undefined
   });
 
   if (description.trim()) {
@@ -225,7 +227,7 @@ async function runWizard() {
       wizardState.description = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.description,
-        validate: (input) => !!input.trim() || "Please enter a description.",
+        validate: (input) => !!input.trim() || "Please enter a description."
       });
     }
   }
@@ -248,7 +250,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.title || undefined,
+    default: wizardState.title || undefined
   });
 
   if (title.trim()) {
@@ -270,13 +272,13 @@ async function runWizard() {
         choices: titleOptionsResponse.response
           .map((title: string) => ({
             name: title,
-            value: title,
+            value: title
           }))
           .concat([
             new Separator(),
             { name: "Enter a new one", value: "__new__" },
-            new Separator(),
-          ]),
+            new Separator()
+          ])
       });
 
       wizardState.title =
@@ -287,7 +289,7 @@ async function runWizard() {
       wizardState.title = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.title,
-        validate: (input) => !!input.trim() || "Please enter a title.",
+        validate: (input) => !!input.trim() || "Please enter a title."
       });
     }
   }
@@ -310,7 +312,7 @@ async function runWizard() {
         return `Not a valid URL - ${favicon_url.trim()}. Try again.`;
       }
       return true;
-    },
+    }
   });
 
   saveState(wizardState);
@@ -327,7 +329,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.coreThemes || undefined,
+    default: wizardState.coreThemes || undefined
   });
 
   if (themesFromUser.trim()) {
@@ -349,12 +351,12 @@ async function runWizard() {
         choices: themesOptionsResponse.response.map((theme: string) => ({
           name: theme,
           value: theme,
-          checked: true,
-        })),
+          checked: true
+        }))
       });
 
       const newThemesFromUser = await input({
-        message: `Enter any more (leave empty for none): `,
+        message: "Enter any more (leave empty for none): "
       });
 
       wizardState.coreThemes = (
@@ -366,7 +368,7 @@ async function runWizard() {
       wizardState.coreThemes = await input({
         message: `Couldn't generate. Please type some in? `,
         default: wizardState.coreThemes,
-        validate: (input) => !!input.trim() || "Please enter a theme.",
+        validate: (input) => !!input.trim() || "Please enter a theme."
       });
     }
   }
@@ -388,7 +390,7 @@ async function runWizard() {
     ).toFixed(4)}): `,
     default:
       (wizardState.intendedAudience && wizardState.intendedAudience) ||
-      undefined,
+      undefined
   });
 
   if (audienceFromUser.trim()) {
@@ -410,12 +412,12 @@ async function runWizard() {
         choices: audienceOptionsResponse.response.map((audience: string) => ({
           name: audience,
           value: audience,
-          checked: true,
-        })),
+          checked: true
+        }))
       });
 
       const newAudienceFromUser = await input({
-        message: `Enter any more (leave empty for none): `,
+        message: "Enter any more (leave empty for none): "
       });
 
       wizardState.intendedAudience = (
@@ -428,7 +430,7 @@ async function runWizard() {
         message: `Couldn't generate. Please type some keywords in? `,
         default: wizardState.intendedAudience,
         validate: (input) =>
-          !!input.trim() || "Please enter some words describing the audience.",
+          !!input.trim() || "Please enter some words describing the audience."
       });
     }
   }
@@ -452,7 +454,7 @@ async function runWizard() {
       wizardState.smarterModel
     ).toFixed(4)}): `,
     default: false,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   if (questionPermission) {
@@ -475,9 +477,9 @@ async function runWizard() {
             isCommandAvailable(editor.command)
           ).map((editor) => ({
             name: editor.name,
-            value: editor.command,
+            value: editor.command
           })),
-          default: wizardState.preferredEditor || EDITORS[0].command,
+          default: wizardState.preferredEditor || EDITORS[0].command
         });
 
         wizardState.preferredEditor = editorName;
@@ -493,7 +495,7 @@ async function runWizard() {
             (question: string, index: number) =>
               `${index + 1}. ${question}\n\nAnswer: \n\n`
           )
-          .join("\n")}`,
+          .join("\n")}`
       });
 
       wizardState.ambiguityExplained =
@@ -513,8 +515,7 @@ async function runWizard() {
     default: wizardState.writingExampleFilename || undefined,
     validate: (filename) => {
       if (
-        filename &&
-        filename.trim() &&
+        filename?.trim() &&
         !fs.existsSync(
           path.normalize(
             filename
@@ -526,7 +527,7 @@ async function runWizard() {
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
-    },
+    }
   });
 
   if (writingExampleFilename.trim()) {
@@ -572,7 +573,7 @@ async function runWizard() {
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎"),
+      transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!confirmOutline) {
@@ -640,34 +641,29 @@ async function runWizard() {
       checked: boolean;
     }[] {
       let counter = 0;
-      return sections
-        .map((section, index) => {
-          if (hideDisabled && section.disabled) return [];
-          counter++;
+      return sections.flatMap((section, index) => {
+        if (hideDisabled && section.disabled) return [];
+        counter++;
 
-          const flattened = [
-            {
-              name:
-                "-".repeat(levels.length + 1) +
-                " " +
-                counter +
-                ". " +
-                section.title,
-              value: levels.concat([section.permalink]).join("->"),
-              checked: !section.disabled,
-            },
-          ];
-          if (section.subsections)
-            return flattened.concat(
-              flattenOutline(
-                section.subsections,
-                levels.concat([section.permalink]),
-                hideDisabled
-              )
-            );
-          return flattened;
-        })
-        .flat();
+        const flattened = [
+          {
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
+              section.title
+            }`,
+            value: levels.concat([section.permalink]).join("->"),
+            checked: !section.disabled
+          }
+        ];
+        if (section.subsections)
+          return flattened.concat(
+            flattenOutline(
+              section.subsections,
+              levels.concat([section.permalink]),
+              hideDisabled
+            )
+          );
+        return flattened;
+      });
     }
 
     const outlineFlatList = flattenOutline(
@@ -679,7 +675,7 @@ async function runWizard() {
       required: true,
       pageSize: 15,
       message: "Pick sections you want to keep: ",
-      choices: outlineFlatList.concat([new Separator() as any]),
+      choices: [...outlineFlatList, new Separator()]
     });
 
     function setDisabledSections(sections: OutlineSection[], levels: string[]) {
@@ -732,7 +728,7 @@ async function runWizard() {
         regenerateOutlineInferenceMessages,
         4096,
         wizardState.smarterModel
-      ).toFixed(4)}): `,
+      ).toFixed(4)}): `
     });
 
     if (newSections.trim()) {
@@ -783,7 +779,7 @@ async function runWizard() {
     message:
       "Do you want to skip adding placeholders for diagrams? (Recommended for now): ",
     default: wizardState.skipDiagrams || true,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   function getPageWritingMessages(
@@ -791,31 +787,30 @@ async function runWizard() {
     levels: string[],
     skipDiagrams: boolean
   ): ReadyToGeneratePage[] {
-    return sections
-      .map((section) => {
-        const sectionMessages = {
+    return sections.flatMap((section) => {
+      const sectionMessages = {
+        section,
+        levels: levels.concat([section.permalink]),
+        messages: getPageGenerationInferenceMessages(
+          outlineQuestions,
+          // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
+          wizardState.generatedOutline!,
           section,
-          levels: levels.concat([section.permalink]),
-          messages: getPageGenerationInferenceMessages(
-            outlineQuestions,
-            wizardState.generatedOutline!,
-            section,
-            skipDiagrams
-          ),
-        };
+          skipDiagrams
+        )
+      };
 
-        if (section.subsections)
-          return [
-            sectionMessages,
-            ...getPageWritingMessages(
-              section.subsections,
-              levels.concat([section.permalink]),
-              skipDiagrams
-            ),
-          ];
-        else return [sectionMessages];
-      })
-      .flat();
+      if (section.subsections)
+        return [
+          sectionMessages,
+          ...getPageWritingMessages(
+            section.subsections,
+            levels.concat([section.permalink]),
+            skipDiagrams
+          )
+        ];
+      else return [sectionMessages];
+    });
   }
 
   const cleanedOutline = JSON.parse(
@@ -842,15 +837,19 @@ async function runWizard() {
 
   wizardState.pageGenerationModel = await select({
     message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
-    choices: CLAUDE_MODELS.map((model, index) => ({
-      name: model.name,
-      value: model.model,
-      description:
-        model.pageDescription + " " + `(costs $${costs[index].toFixed(4)})`,
-    })).concat(new Separator() as any),
+    choices: [
+      ...CLAUDE_MODELS.map((model, index) => ({
+        name: model.name,
+        value: model.model,
+        description: `${model.pageDescription} (costs $${costs[index].toFixed(
+          4
+        )})`
+      })),
+      new Separator()
+    ],
     default:
       wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
+      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
   });
 
   saveState(wizardState);
@@ -863,9 +862,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command,
+        value: editor.command
       })),
-      default: "npm",
+      default: "npm"
     });
   }
 
@@ -886,7 +885,7 @@ async function runWizard() {
         message:
           "There seem to already be a pages folder. Should we overwrite? ",
         default: wizardState.overwritePages || false,
-        transformer: (answer) => (answer ? "👍" : "👎"),
+        transformer: (answer) => (answer ? "👍" : "👎")
       }))) ||
     false;
 
@@ -895,6 +894,7 @@ async function runWizard() {
   if (!fs.existsSync(path.join(docsFolder, "pages"))) {
     idempotentlySetupNextraDocs(
       docsFolder,
+      // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
       RUNNERS.find(
         (runner) => runner.command === wizardState.preferredRunnerForNextra
       )!,
@@ -905,7 +905,7 @@ async function runWizard() {
   const finalCheck = await confirm({
     message: "#######\n\nReady to start? ",
     default: true,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   if (!finalCheck) {

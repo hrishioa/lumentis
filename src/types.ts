@@ -1,4 +1,5 @@
 import type { MessageParam } from "@anthropic-ai/sdk/resources";
+import { RUNNERS } from "./constants";
 
 export type OutlineSection = LLMOutlineSection & { disabled?: boolean };
 
@@ -40,7 +41,7 @@ export type WizardState = Partial<{
   outlineComments: string;
   pageGenerationModel: string;
   skipDiagrams: boolean;
-  preferredRunnerForNextra: string;
+  preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
   overwritePages: boolean;
   faviconUrl: string;
 }>;

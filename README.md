@@ -83,4 +83,5 @@ Try it out and let me know the URL so I can add it here! There's also some badly
 
 # Contributors
 
-1. [HebeHH](https://github.com/HebeHH) for adding favicons!
+1. [HebeHH](https://github.com/HebeHH) for adding favicons 🫶
+2. [Eugene](https://github.com/eugene-yaroslavtsev) for adding biome and providing type safety fixes!
