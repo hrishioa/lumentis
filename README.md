@@ -66,7 +66,7 @@ Lumentis reads your transcript and:
 6. Recursive summarisation and expansion
 7. Continuously updating docs
 
-## Installation
+## Development
 
 ```bash
 git clone https://github.com/hrishioa/lumentis.git
