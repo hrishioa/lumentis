@@ -16,26 +16,26 @@ export const CLAUDE_MODELS = [
     name: "Claude 3 Opus",
     model: "claude-3-opus-20240229",
     smarterDescription: "This is the ferrari. Expensive but so good.",
-    pageDescription: "Smartest - Use for expensive but awesome results!",
+    pageDescription: "Smartest - Use for expensive but awesome results!"
   },
   {
     name: "Claude 3 Sonnet",
     model: "claude-3-sonnet-20240229",
     smarterDescription: "Perfectly fine!",
-    pageDescription: "Middle child - still kind of expensive",
+    pageDescription: "Middle child - still kind of expensive"
   },
   {
     name: "Claude 3 Haiku",
     model: "claude-3-haiku-20240307",
     smarterDescription: "Cheapest, not preferred for this stage",
-    pageDescription: "Fast and cheap - get what we pay for",
-  },
+    pageDescription: "Fast and cheap - get what we pay for"
+  }
 ] as const;
 
 export const EDITORS = [
   { name: "nano", command: "nano" },
   { name: "vim but know you can never leave", command: "vim" },
-  { name: "emacs", command: "emacs" },
+  { name: "emacs", command: "emacs" }
   // TODO: We should work very hard to re-enable these
   // { name: "vscode", command: "code" },
   // { name: "zed", command: "zed" },
@@ -46,21 +46,21 @@ export const RUNNERS = [
   {
     name: "bun",
     command: "bun",
-    installPrefix: "add",
+    installPrefix: "add"
   },
   {
     name: "npm",
     command: "npm",
-    installPrefix: "install",
+    installPrefix: "install"
   },
   {
     name: "yarn",
     command: "yarn",
-    installPrefix: "add",
+    installPrefix: "add"
   },
   {
     name: "pnpm",
     command: "pnpm",
-    installPrefix: "add",
-  },
+    installPrefix: "add"
+  }
 ] as const;
