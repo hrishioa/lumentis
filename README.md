@@ -37,6 +37,7 @@ Lumentis lets you swap models between stages. Here's some docs exactly as Lument
 2. **[Designing Frictionless Interfaces for Google](https://designing-better-ui.vercel.app/)** - Mustafa Kurtuldu gave a wonderful talk on design and UX I wish more people would watch. Now ou can read it. [(Do still watch it)](https://www.youtube.com/watch?v=Drf5ZKd4aVY) but this is Haiku doing the whole thing for less than 8 (not eighty) cents!
 3. **[How the AI in Spiderman 2 works](https://spiderman-2-ai-mechanics.vercel.app/)** - from [something that's been on my list](https://www.youtube.com/watch?v=LxWq65CZBU8) for a long time. Opus took about $3.80 to do the whole thing.
 4. **[Sam Altman and Lex Friedman on GPT-5](https://sam-lex-gpt5.vercel.app/)** - Sam and Lex [had a conversation](https://www.youtube.com/watch?v=jvqFAi7vkBc) recently. Here's Opus doing the hard work for $2.3, and Sonnet doing the rest for $2.5. This is the expensive option.
+5. **[Self-Discover in DSPy with Chris Dossman](https://lumentis-autogen-dspy-weviate-podcast.vercel.app/)** - [an interesting conversation between Chris Dossman and Weviate](https://www.youtube.com/watch?v=iC64q1gFWiY) about DSPy and structured reasoning, one of the core concepts behind the framework. [Eugene](https://github.com/eugene-yaroslavtsev) splurged something like $25 on this 😱 because he wanted to see how Lumentis would do at its best.
 
 ## Features
 
