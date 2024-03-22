@@ -1,6 +1,6 @@
 {
   "name": "lumentis",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
   "description": "Create awesome docs from your transcripts, notes and documents in seconds, ready to deploy.",
   "license": "by-nc-4.0",
@@ -10,17 +10,13 @@
     "@inquirer/prompts": "^4.3.0",
     "@types/node": "^20.11.30",
     "cross-spawn": "^7.0.3",
-    "next": "^14.1.4",
-    "nextra": "^2.13.4",
-    "nextra-theme-docs": "^2.13.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "typescript": "^5.4.3"
   },
   "devDependencies": {
     "@swc/core": "^1.4.8",
     "@types/bun": "latest",
-    "@types/cross-spawn": "^6.0.6"
+    "@types/cross-spawn": "^6.0.6",
+    "tsup": "^8.0.2"
   },
   "main": "dist/app.js",
   "bin": {
