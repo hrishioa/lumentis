@@ -53,6 +53,8 @@ async function runWizard() {
 `
   );
 
+  // Ask for directory permissions
+
   if (!wizardState.gotDirectoryPermission) {
     wizardState.gotDirectoryPermission = await confirm({
       message: "Are you in a clean directory I can start saving things to?",
@@ -70,6 +72,8 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  // Ask for AI model to use
+
   wizardState.smarterModel = await select({
     message:
       "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
@@ -86,6 +90,8 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  // Ask to stream output to console
+
   wizardState.streamToConsole = await confirm({
     message:
       "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
@@ -94,6 +100,9 @@ async function runWizard() {
   });
 
   saveState(wizardState);
+
+  // Ask for transcript/text file
+  // TODO: if they give a different primary source than already exists, wipe all subsequent defaults
 
   const fileName = await input({
     message:
@@ -160,6 +169,8 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  // Ask for Anthropic key
+
   wizardState.anthropicKey =
     (await password({
       message:
@@ -179,6 +190,8 @@ async function runWizard() {
         else return `The key in your env didn't work. Try again?`;
       },
     })) || undefined;
+
+  // Ask for source description
 
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
     wizardState.loadedPrimarySource
@@ -229,6 +242,8 @@ async function runWizard() {
     wizardState.loadedPrimarySource,
     wizardState.description
   );
+
+  // Ask for title
 
   const title = await input({
     message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getClaudeCosts(
@@ -281,6 +296,29 @@ async function runWizard() {
   }
 
   saveState(wizardState);
+
+  // Ask for favicon URL
+
+  const urlPattern =
+    /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+  wizardState.faviconUrl = await input({
+    message: "Choose your own favicon! \nPlease provide a URL only.",
+    default:
+      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+    // change the default to the permanent raw URL of assets/default-favicon.png, once on github
+    validate: (favicon_url) => {
+      if (!urlPattern.test(favicon_url.trim())) {
+        console.log("hi");
+        console.log(favicon_url);
+        return `Not a valid URL - ${favicon_url.trim()}. Try again.`;
+      }
+      return true;
+    },
+  });
+
+  saveState(wizardState);
+
+  // Ask for theme/keywords
 
   const themesInferenceMessages = getThemeInferenceMessages(
     wizardState.loadedPrimarySource
@@ -337,6 +375,8 @@ async function runWizard() {
   }
 
   saveState(wizardState);
+
+  // Ask for Audience
 
   const audienceInferenceMessages = getAudienceInferenceMessages(
     wizardState.loadedPrimarySource,
@@ -397,6 +437,8 @@ async function runWizard() {
   }
 
   saveState(wizardState);
+
+  // AI asks questions back
 
   const questionsMessages = getQuestionsInferenceMessages(
     wizardState.loadedPrimarySource,
@@ -466,6 +508,8 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  // Ask for writing style
+
   const writingExampleFilename = await input({
     message:
       "Do you have an example of writing style you want to add in (adds cost but improves output, \nleave blank to skip. Drag in a file): ",
@@ -506,6 +550,8 @@ async function runWizard() {
   }
 
   saveState(wizardState);
+
+  // Ask AI for outline
 
   const outlineQuestions = getOutlineInferenceMessages(
     wizardState.title,
@@ -575,6 +621,8 @@ async function runWizard() {
         return section;
       });
   }
+
+  // Actually generate the docs
 
   while (true) {
     if (!wizardState.generatedOutline) {
@@ -730,7 +778,8 @@ async function runWizard() {
   }
 
   wizardState.skipDiagrams = await confirm({
-    message: "Do you want to skip diagrams? (Recommended for now): ",
+    message:
+      "Do you want to skip adding placeholders for diagrams? (Recommended for now): ",
     default: wizardState.skipDiagrams || true,
     transformer: (answer) => (answer ? "👍" : "👎"),
   });

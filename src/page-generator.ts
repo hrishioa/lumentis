@@ -77,6 +77,7 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
           <meta property="og:title" content="${wizardState.title}" />
           <meta property="og:description" content="${wizardState.description}" />
           <meta name="robots" content="noindex, nofollow" />
+          <link rel="icon" type="image/x-icon" href="${wizardState.faviconUrl}" />
         </>
       ),
     };

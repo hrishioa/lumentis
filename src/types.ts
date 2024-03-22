@@ -43,4 +43,5 @@ export type WizardState = Partial<{
   skipDiagrams: boolean;
   preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
   overwritePages: boolean;
+  faviconUrl: string;
 }>;
