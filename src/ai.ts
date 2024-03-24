@@ -24,6 +24,7 @@ export async function runClaudeInference(
 
   if (saveName) {
     if (!fs.existsSync(messageBackupSpot)) fs.mkdirSync(messageBackupSpot);
+    saveName = saveName.replace(/[<>:"/\\|?*]/g, '_');
     fs.writeFileSync(
       path.join(messageBackupSpot, saveName + ".json"),
       JSON.stringify(messages, null, 2)
