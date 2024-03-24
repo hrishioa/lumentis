@@ -294,6 +294,6 @@ export async function generatePages(
 
     You can learn more about Nextra (what we use for our theme) here: https://nextra.site/docs/docs-theme/start.
 
-    If this helped (or for support) do find https://hrishioa/lumentis and drop a star!`
+    If this helped (or for support) do find https://github.com/hrishioa/lumentis and drop a star!`
   );
 }
