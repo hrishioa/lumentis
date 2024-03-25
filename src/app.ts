@@ -504,14 +504,7 @@ async function runWizard() {
     validate: (filename) => {
       if (
         filename?.trim() &&
-        !fs.existsSync(
-          path.normalize(
-            filename
-              .replace(/^["'](.*)["']$/, "$1")
-              .replace(/\\/, "")
-              .trim()
-          )
-        )
+        !fs.existsSync(parsePlatformIndependentPath(filename))
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
@@ -519,10 +512,9 @@ async function runWizard() {
   });
 
   if (writingExampleFilename.trim()) {
-    wizardState.writingExampleFilename = writingExampleFilename
-      .replace(/^["'](.*)["']$/, "$1")
-      .replace(/\\/, "")
-      .trim();
+    wizardState.writingExampleFilename = parsePlatformIndependentPath(
+      writingExampleFilename
+    );
 
     const dataFromFile = fs.readFileSync(
       wizardState.writingExampleFilename,

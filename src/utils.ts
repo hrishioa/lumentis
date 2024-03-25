@@ -9,7 +9,7 @@ export function parsePlatformIndependentPath(iPath: string): string {
     return path.normalize(
       iPath
         .replace(/^["'](.*)["']$/, "$1")
-        .replace(/\\/, "")
+        .replace(/\\ /g, " ")
         .trim()
     );
   }
