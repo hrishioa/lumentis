@@ -52,7 +52,7 @@ Lumentis lets you swap models between stages. Here's some docs exactly as Lument
 
 Lumentis reads your transcript and:
 
-1. Asks you some questions to understand the themes and audience. Also to surf the latent space (ask me about it)
+1. Asks you some questions to understand the themes and audience. Also to surf the latent space or things.
 2. Generates an outline and asks you to select what you want to keep.
 3. Auto generates structure from the information and further refines it with your input, while self-healing things.
 4. Generates detailed pages with visual variety, formatting and styles.
