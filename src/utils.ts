@@ -1,5 +1,19 @@
 import * as os from "node:os";
+import * as path from "node:path";
 import * as spawn from "cross-spawn";
+
+export function parsePlatformIndependentPath(iPath: string): string {
+  if (os.platform() === "win32") {
+    return path.normalize(iPath.replace(/^["'](.*)["']$/, "$1").trim());
+  } else {
+    return path.normalize(
+      iPath
+        .replace(/^["'](.*)["']$/, "$1")
+        .replace(/\\/, "")
+        .trim()
+    );
+  }
+}
 
 export function isCommandAvailable(command: string): boolean {
   try {

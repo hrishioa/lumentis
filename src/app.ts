@@ -9,7 +9,7 @@ import {
   editor,
   input,
   password,
-  select
+  select,
 } from "@inquirer/prompts";
 import { getClaudeCosts, runClaudeInference } from "./ai";
 import {
@@ -19,7 +19,7 @@ import {
   RUNNERS,
   WRITING_STYLE_SIZE_LIMIT,
   lumentisFolderPath,
-  wizardStatePath
+  wizardStatePath,
 } from "./constants";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
@@ -30,10 +30,10 @@ import {
   getPageGenerationInferenceMessages,
   getQuestionsInferenceMessages,
   getThemeInferenceMessages,
-  getTitleInferenceMessages
+  getTitleInferenceMessages,
 } from "./prompts";
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { isCommandAvailable } from "./utils";
+import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -59,7 +59,7 @@ async function runWizard() {
     wizardState.gotDirectoryPermission = await confirm({
       message: "Are you in a clean directory I can start saving things to?",
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎")
+      transformer: (answer) => (answer ? "👍" : "👎"),
     });
 
     if (!wizardState.gotDirectoryPermission) {
@@ -81,11 +81,11 @@ async function runWizard() {
       ...CLAUDE_MODELS.map((model) => ({
         name: model.name,
         value: model.model,
-        description: model.smarterDescription
+        description: model.smarterDescription,
       })),
-      new Separator()
+      new Separator(),
     ],
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model
+    default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
   });
 
   saveState(wizardState);
@@ -96,7 +96,7 @@ async function runWizard() {
     message:
       "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
     default: wizardState.streamToConsole || false,
-    transformer: (answer) => (answer ? "👍" : "👎")
+    transformer: (answer) => (answer ? "👍" : "👎"),
   });
 
   saveState(wizardState);
@@ -111,27 +111,15 @@ async function runWizard() {
     validate: (filename) => {
       if (
         filename?.trim() &&
-        !fs.existsSync(
-          path.normalize(
-            filename
-              .replace(/^["'](.*)["']$/, "$1")
-              .replace(/\\/, "")
-              .trim()
-          )
-        )
+        !fs.existsSync(parsePlatformIndependentPath(filename))
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
-    }
+    },
   });
 
   if (fileName.trim()) {
-    wizardState.primarySourceFilename = path.normalize(
-      fileName
-        .replace(/^["'](.*)["']$/, "$1")
-        .replace(/\\/, "")
-        .trim()
-    );
+    wizardState.primarySourceFilename = parsePlatformIndependentPath(fileName);
 
     const dataFromFile = fs.readFileSync(
       wizardState.primarySourceFilename,
@@ -147,9 +135,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command
+        value: editor.command,
       })),
-      default: wizardState.preferredEditor || EDITORS[0].command
+      default: wizardState.preferredEditor || EDITORS[0].command,
     });
 
     process.env.EDITOR = editorName;
@@ -160,7 +148,7 @@ async function runWizard() {
       validate: (input) => {
         if (!input.trim()) return "Please enter something - ideally a lot!";
         return true;
-      }
+      },
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
@@ -187,7 +175,7 @@ async function runWizard() {
 
         if (key.trim()) return `Your key didn't work. Try again?`;
         else return `The key in your env didn't work. Try again?`;
-      }
+      },
     })) || undefined;
 
   // Ask for source description
@@ -202,7 +190,7 @@ async function runWizard() {
       700,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.description || undefined
+    default: wizardState.description || undefined,
   });
 
   if (description.trim()) {
@@ -227,7 +215,7 @@ async function runWizard() {
       wizardState.description = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.description,
-        validate: (input) => !!input.trim() || "Please enter a description."
+        validate: (input) => !!input.trim() || "Please enter a description.",
       });
     }
   }
@@ -250,7 +238,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.title || undefined
+    default: wizardState.title || undefined,
   });
 
   if (title.trim()) {
@@ -272,13 +260,13 @@ async function runWizard() {
         choices: titleOptionsResponse.response
           .map((title: string) => ({
             name: title,
-            value: title
+            value: title,
           }))
           .concat([
             new Separator(),
             { name: "Enter a new one", value: "__new__" },
-            new Separator()
-          ])
+            new Separator(),
+          ]),
       });
 
       wizardState.title =
@@ -289,7 +277,7 @@ async function runWizard() {
       wizardState.title = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.title,
-        validate: (input) => !!input.trim() || "Please enter a title."
+        validate: (input) => !!input.trim() || "Please enter a title.",
       });
     }
   }
@@ -312,7 +300,7 @@ async function runWizard() {
         return `Not a valid URL - ${favicon_url.trim()}. Try again.`;
       }
       return true;
-    }
+    },
   });
 
   saveState(wizardState);
@@ -329,7 +317,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.coreThemes || undefined
+    default: wizardState.coreThemes || undefined,
   });
 
   if (themesFromUser.trim()) {
@@ -351,12 +339,12 @@ async function runWizard() {
         choices: themesOptionsResponse.response.map((theme: string) => ({
           name: theme,
           value: theme,
-          checked: true
-        }))
+          checked: true,
+        })),
       });
 
       const newThemesFromUser = await input({
-        message: "Enter any more (leave empty for none): "
+        message: "Enter any more (leave empty for none): ",
       });
 
       wizardState.coreThemes = (
@@ -368,7 +356,7 @@ async function runWizard() {
       wizardState.coreThemes = await input({
         message: `Couldn't generate. Please type some in? `,
         default: wizardState.coreThemes,
-        validate: (input) => !!input.trim() || "Please enter a theme."
+        validate: (input) => !!input.trim() || "Please enter a theme.",
       });
     }
   }
@@ -390,7 +378,7 @@ async function runWizard() {
     ).toFixed(4)}): `,
     default:
       (wizardState.intendedAudience && wizardState.intendedAudience) ||
-      undefined
+      undefined,
   });
 
   if (audienceFromUser.trim()) {
@@ -412,12 +400,12 @@ async function runWizard() {
         choices: audienceOptionsResponse.response.map((audience: string) => ({
           name: audience,
           value: audience,
-          checked: true
-        }))
+          checked: true,
+        })),
       });
 
       const newAudienceFromUser = await input({
-        message: "Enter any more (leave empty for none): "
+        message: "Enter any more (leave empty for none): ",
       });
 
       wizardState.intendedAudience = (
@@ -430,7 +418,7 @@ async function runWizard() {
         message: `Couldn't generate. Please type some keywords in? `,
         default: wizardState.intendedAudience,
         validate: (input) =>
-          !!input.trim() || "Please enter some words describing the audience."
+          !!input.trim() || "Please enter some words describing the audience.",
       });
     }
   }
@@ -454,7 +442,7 @@ async function runWizard() {
       wizardState.smarterModel
     ).toFixed(4)}): `,
     default: false,
-    transformer: (answer) => (answer ? "👍" : "👎")
+    transformer: (answer) => (answer ? "👍" : "👎"),
   });
 
   if (questionPermission) {
@@ -477,9 +465,9 @@ async function runWizard() {
             isCommandAvailable(editor.command)
           ).map((editor) => ({
             name: editor.name,
-            value: editor.command
+            value: editor.command,
           })),
-          default: wizardState.preferredEditor || EDITORS[0].command
+          default: wizardState.preferredEditor || EDITORS[0].command,
         });
 
         wizardState.preferredEditor = editorName;
@@ -495,7 +483,7 @@ async function runWizard() {
             (question: string, index: number) =>
               `${index + 1}. ${question}\n\nAnswer: \n\n`
           )
-          .join("\n")}`
+          .join("\n")}`,
       });
 
       wizardState.ambiguityExplained =
@@ -527,7 +515,7 @@ async function runWizard() {
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
-    }
+    },
   });
 
   if (writingExampleFilename.trim()) {
@@ -573,7 +561,7 @@ async function runWizard() {
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎")
+      transformer: (answer) => (answer ? "👍" : "👎"),
     });
 
     if (!confirmOutline) {
@@ -651,8 +639,8 @@ async function runWizard() {
               section.title
             }`,
             value: levels.concat([section.permalink]).join("->"),
-            checked: !section.disabled
-          }
+            checked: !section.disabled,
+          },
         ];
         if (section.subsections)
           return flattened.concat(
@@ -675,7 +663,7 @@ async function runWizard() {
       required: true,
       pageSize: 15,
       message: "Pick sections you want to keep: ",
-      choices: [...outlineFlatList, new Separator()]
+      choices: [...outlineFlatList, new Separator()],
     });
 
     function setDisabledSections(sections: OutlineSection[], levels: string[]) {
@@ -728,7 +716,7 @@ async function runWizard() {
         regenerateOutlineInferenceMessages,
         4096,
         wizardState.smarterModel
-      ).toFixed(4)}): `
+      ).toFixed(4)}): `,
     });
 
     if (newSections.trim()) {
@@ -779,7 +767,7 @@ async function runWizard() {
     message:
       "Do you want to skip adding placeholders for diagrams? (Recommended for now): ",
     default: wizardState.skipDiagrams || true,
-    transformer: (answer) => (answer ? "👍" : "👎")
+    transformer: (answer) => (answer ? "👍" : "👎"),
   });
 
   function getPageWritingMessages(
@@ -797,7 +785,7 @@ async function runWizard() {
           wizardState.generatedOutline!,
           section,
           skipDiagrams
-        )
+        ),
       };
 
       if (section.subsections)
@@ -807,7 +795,7 @@ async function runWizard() {
             section.subsections,
             levels.concat([section.permalink]),
             skipDiagrams
-          )
+          ),
         ];
       else return [sectionMessages];
     });
@@ -843,13 +831,13 @@ async function runWizard() {
         value: model.model,
         description: `${model.pageDescription} (costs $${costs[index].toFixed(
           4
-        )})`
+        )})`,
       })),
-      new Separator()
+      new Separator(),
     ],
     default:
       wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
+      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
   });
 
   saveState(wizardState);
@@ -862,9 +850,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command
+        value: editor.command,
       })),
-      default: "npm"
+      default: "npm",
     });
   }
 
@@ -885,7 +873,7 @@ async function runWizard() {
         message:
           "There seem to already be a pages folder. Should we overwrite? ",
         default: wizardState.overwritePages || false,
-        transformer: (answer) => (answer ? "👍" : "👎")
+        transformer: (answer) => (answer ? "👍" : "👎"),
       }))) ||
     false;
 
@@ -905,7 +893,7 @@ async function runWizard() {
   const finalCheck = await confirm({
     message: "#######\n\nReady to start? ",
     default: true,
-    transformer: (answer) => (answer ? "👍" : "👎")
+    transformer: (answer) => (answer ? "👍" : "👎"),
   });
 
   if (!finalCheck) {
