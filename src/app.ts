@@ -33,7 +33,7 @@ import {
   getTitleInferenceMessages
 } from "./prompts";
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { isCommandAvailable } from "./utils";
+import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -111,14 +111,7 @@ async function runWizard() {
     validate: (filename) => {
       if (
         filename?.trim() &&
-        !fs.existsSync(
-          path.normalize(
-            filename
-              .replace(/^["'](.*)["']$/, "$1")
-              .replace(/\\/, "")
-              .trim()
-          )
-        )
+        !fs.existsSync(parsePlatformIndependentPath(filename))
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
@@ -126,12 +119,7 @@ async function runWizard() {
   });
 
   if (fileName.trim()) {
-    wizardState.primarySourceFilename = path.normalize(
-      fileName
-        .replace(/^["'](.*)["']$/, "$1")
-        .replace(/\\/, "")
-        .trim()
-    );
+    wizardState.primarySourceFilename = parsePlatformIndependentPath(fileName);
 
     const dataFromFile = fs.readFileSync(
       wizardState.primarySourceFilename,
@@ -516,14 +504,7 @@ async function runWizard() {
     validate: (filename) => {
       if (
         filename?.trim() &&
-        !fs.existsSync(
-          path.normalize(
-            filename
-              .replace(/^["'](.*)["']$/, "$1")
-              .replace(/\\/, "")
-              .trim()
-          )
-        )
+        !fs.existsSync(parsePlatformIndependentPath(filename))
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
@@ -531,10 +512,9 @@ async function runWizard() {
   });
 
   if (writingExampleFilename.trim()) {
-    wizardState.writingExampleFilename = writingExampleFilename
-      .replace(/^["'](.*)["']$/, "$1")
-      .replace(/\\/, "")
-      .trim();
+    wizardState.writingExampleFilename = parsePlatformIndependentPath(
+      writingExampleFilename
+    );
 
     const dataFromFile = fs.readFileSync(
       wizardState.writingExampleFilename,
