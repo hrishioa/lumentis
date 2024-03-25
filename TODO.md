@@ -19,4 +19,3 @@
 10. Using things larger than the context window
 11. We can do this by maintaining an almost DP-like state of outlines and pages, and then asking for updates with more information. Works when there's a primary source and secondaries, and also still pretty expensive.
 12. JSON parsing on the questions set
-13. Add attribution
