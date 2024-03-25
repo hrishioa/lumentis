@@ -28,9 +28,7 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"
