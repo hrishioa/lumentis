@@ -40,7 +40,7 @@ export type WizardState = Partial<{
   generatedOutline: Outline;
   outlineComments: string;
   pageGenerationModel: string;
-  skipDiagrams: boolean;
+  addDiagrams: boolean;
   preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
   overwritePages: boolean;
   faviconUrl: string;

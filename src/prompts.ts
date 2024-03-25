@@ -234,22 +234,21 @@ Contents
   "Presume that the other sections are written.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
-  "Add mermaid diagrams in markdown (\`\`\`mermaid) and latex (surrounded by $) when needed.",
   "Provide examples when needed from your knowledge.",
   "Use bullet points to simplify when possible.",
   "Make sure to start headings in each section and subsection at the top level (#).",
-  "Leave placeholders where diagrams can be added to explain things more. Don't use tags, instead use the template [Diagram to be made of XXXX]."
+  "Add mermaid diagrams in markdown (\`\`\`mermaid) and latex (surrounded by $) when needed.",
 ];
 
 export function getPageGenerationInferenceMessages(
   outlineGenerationMessages: MessageParam[],
   selectedOutline: Outline,
   selectedSection: OutlineSection,
-  skipDiagrams: boolean
+  addDiagrams: boolean
 ): MessageParam[] {
-  const actualWritingGuidelines = skipDiagrams
-    ? writingGuidelines.slice(0, -1)
-    : writingGuidelines;
+  const actualWritingGuidelines = addDiagrams
+    ? writingGuidelines
+    : writingGuidelines.slice(0, -1);
 
   return [
     ...outlineGenerationMessages.slice(0, -1),
