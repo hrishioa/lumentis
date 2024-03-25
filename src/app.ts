@@ -914,7 +914,7 @@ async function runWizard() {
   }
 
   console.log(
-    "\n\nAnd we're off! If this helps do find https://hrishioa/lumentis and drop a star!\n\n"
+    "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
   );
 
   await generatePages(
