@@ -19,8 +19,8 @@ Please generate up to 10 possible names for documentation we want to build, for 
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -42,8 +42,8 @@ Please generate up to 10 words describing the intended audience for creating doc
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -62,8 +62,8 @@ Please generate up to 10 possible keywords referring to industries, technologies
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -80,7 +80,7 @@ ${primarySource}
 
 Please provide a three sentence description of the information in PrimarySource. Is this a conversation transcript, an article, etc? What is it about? what are the key themes and who is this likely by and for? No newlines.
 `
-    }
+    },
   ];
 }
 
@@ -113,8 +113,8 @@ We want to build proper comprehensive docs for what's in PrimarySource. Can you 
     },
     {
       role: "assistant",
-      content: "["
-    }
+      content: "[",
+    },
   ];
 }
 
@@ -127,7 +127,7 @@ export function getOutlineRegenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline)
+      content: JSON.stringify(selectedOutline),
     },
     // prettier-ignore
     {
@@ -138,8 +138,8 @@ Follow the Outline typespec.
     },
     {
       role: "assistant",
-      content: "{"
-    }
+      content: "{",
+    },
   ];
 }
 
@@ -211,14 +211,14 @@ type Outline = {
     },
     {
       role: "assistant",
-      content: "{"
-    }
+      content: "{",
+    },
   ];
 }
 
 // prettier-ignore
 const writingGuidelines = [
-  `Write in mdx, with appropriate formatting (bold, italics, headings, Callout, Step, Steps etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
+  `Write in mdx, with appropriate formatting (bold, italics, headings, <Callout>, <Steps> etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
 <Steps>
 ### Step 1
 
@@ -234,6 +234,7 @@ Contents
   "Presume that the other sections are written.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
+  "Add mermaid diagrams in markdown (\`\`\`mermaid) and latex (surrounded by $) when needed.",
   "Provide examples when needed from your knowledge.",
   "Use bullet points to simplify when possible.",
   "Make sure to start headings in each section and subsection at the top level (#).",
@@ -254,7 +255,7 @@ export function getPageGenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline)
+      content: JSON.stringify(selectedOutline),
     },
     // prettier-ignore
     {
@@ -273,6 +274,6 @@ ${
         .join(", ")} will be written later, and don't need to elaborated here.`
     : ""
 }`
-    }
+    },
   ];
 }
