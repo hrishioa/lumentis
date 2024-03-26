@@ -216,6 +216,14 @@ type Outline = {
   ];
 }
 
+const optionalWritingGuidelines = {
+  diagramsAndLatex: {
+    guideline:
+      "Add mermaid diagrams in markdown (```mermaid) and latex (surrounded by $) when needed.",
+    index: 1,
+  },
+};
+
 // prettier-ignore
 const writingGuidelines = [
   `Write in mdx, with appropriate formatting (bold, italics, headings, <Callout>, <Steps> etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
@@ -237,7 +245,6 @@ Contents
   "Provide examples when needed from your knowledge.",
   "Use bullet points to simplify when possible.",
   "Make sure to start headings in each section and subsection at the top level (#).",
-  "Add mermaid diagrams in markdown (\`\`\`mermaid) and latex (surrounded by $) when needed.",
 ];
 
 export function getPageGenerationInferenceMessages(
@@ -247,7 +254,16 @@ export function getPageGenerationInferenceMessages(
   addDiagrams: boolean
 ): MessageParam[] {
   const actualWritingGuidelines = addDiagrams
-    ? writingGuidelines
+    ? [
+        ...writingGuidelines.slice(
+          0,
+          optionalWritingGuidelines.diagramsAndLatex.index
+        ),
+        optionalWritingGuidelines.diagramsAndLatex.guideline,
+        ...writingGuidelines.slice(
+          optionalWritingGuidelines.diagramsAndLatex.index
+        ),
+      ]
     : writingGuidelines.slice(0, -1);
 
   return [
