@@ -8,6 +8,11 @@ import {
   NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
   lumentisFolderPath
 } from "./constants";
+import {
+  getOutlineInferenceMessages,
+  getPageGenerationInferenceMessages
+} from "./prompts";
+import { Outline } from "./types";
 import { partialParse } from "./utils";
 
 export async function runClaudeInference(
@@ -242,3 +247,45 @@ function getClaudeCostsWithTokens(
 
   return inputCost + outputCost;
 }
+
+export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
+  const outlineMessages = getOutlineInferenceMessages(
+    "This is some title",
+    "",
+    "This is a long ass description of some sort meant to test things. The idea is just to get a sense of token cost with the base prompts and then add a good enough budget on top of it.",
+    "Crew Management, Maritime Planning, Compliance Calculation, Scheduling, System Architecture, Usage",
+    "AI/ML practitioners, Researchers in AI/ML, Entrepreneurs in AI/ML, Software engineers, Technical decision-makers, Developers working with LLMs, AI/ML students and learners, Managers in AI-driven businesses, Technical content writers, Documenters of AI/ML frameworks",
+    "",
+    ""
+  );
+
+  const outline: Outline = {
+    title: "Lorem ipsum dolor amet",
+    sections: [
+      {
+        title: "formatResponseMessage",
+        permalink: "format-response-message",
+        singleSentenceDescription:
+          "Information on the formatResponseMessage utility function and its purpose.",
+        disabled: false
+      }
+    ]
+  };
+
+  const writingMessages = getPageGenerationInferenceMessages(
+    outlineMessages,
+    outline,
+    outline.sections[0],
+    true
+  );
+
+  const writingTokens = countTokens(
+    writingMessages.map((m) => m.content).join("\n")
+  );
+
+  const OUTLINE_BUDGET = 4096 * 3;
+
+  const WRITING_BUDGET = 4096 * 4;
+
+  return 200000 - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
+})();

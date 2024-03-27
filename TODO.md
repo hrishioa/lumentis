@@ -19,5 +19,5 @@
 10. Using things larger than the context window
 11. We can do this by maintaining an almost DP-like state of outlines and pages, and then asking for updates with more information. Works when there's a primary source and secondaries, and also still pretty expensive.
 12. OpenAI, Gemini, openrouter, etc.
-13. Add token counting to primary source to try and warn early.
-14. Use relative permalinks in the prompt to make links better.
+13. Use relative permalinks in the prompt to make links better.
+14. Variable length page generation.

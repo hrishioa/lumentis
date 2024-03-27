@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { countTokens } from "@anthropic-ai/tokenizer";
 import {
   Separator,
   checkbox,
@@ -11,7 +12,11 @@ import {
   password,
   select
 } from "@inquirer/prompts";
-import { getClaudeCosts, runClaudeInference } from "./ai";
+import {
+  CLAUDE_PRIMARYSOURCE_BUDGET,
+  getClaudeCosts,
+  runClaudeInference
+} from "./ai";
 import {
   CLAUDE_MODELS,
   EDITORS,
@@ -155,6 +160,23 @@ async function runWizard() {
   }
 
   saveState(wizardState);
+
+  const primarySourceTokens = countTokens(wizardState.loadedPrimarySource);
+
+  if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+    wizardState.ignorePrimarySourceSize = await confirm({
+      message: `Your content looks a little too large by about ${
+        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      default: wizardState.ignorePrimarySourceSize || false,
+      transformer: (answer) => (answer ? "👍" : "👎")
+    });
+
+    if (!wizardState.ignorePrimarySourceSize) {
+      console.log("No problem! You can run me again to adjust the source.");
+      return;
+    }
+  }
 
   // Ask for Anthropic key
 

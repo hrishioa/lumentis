@@ -39,6 +39,7 @@ export type WizardState = Partial<{
   outlinePrimaryPrompt: string;
   generatedOutline: Outline;
   outlineComments: string;
+  ignorePrimarySourceSize: boolean;
   pageGenerationModel: string;
   addDiagrams: boolean;
   preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
