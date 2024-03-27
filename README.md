@@ -27,7 +27,7 @@ A simple way to generate comprehensive, easy-to-skim docs from your meeting tran
 3. Answer some questions about themes and audience.
 4. Pick what you like from the generated outline.
 5. Wait for your docs to be written up!
-6. Get something ready to deploy to [Vercel](https://vercel.com) with no changes.
+6. [Deploy your docs to Vercel](https://vercel.com/docs/deployments/overview) by pushing your folder and following the guide.
 
 ## Examples
 
