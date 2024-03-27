@@ -21,3 +21,7 @@
 12. JSON parsing on the questions set
 13. OpenAI, Gemini, openrouter, etc.
 14. Add the section regeneration notes to the final generation prompt
+15. Enable resume after cutoff.
+16. Check that outline comments are being added to state only AFTER the outline generates successfully.
+17. continue generation on partial outline.
+18. Core themes when entered by the user aren't being saved?

@@ -222,11 +222,16 @@ const optionalWritingGuidelines = {
       "Add mermaid diagrams in markdown (```mermaid) and latex (surrounded by $) when needed.",
     index: 1,
   },
+  deeplyTechnical: {
+    index: 3,
+    guideline:
+      "Only write about what is in PrimarySource, for the intended audience at their level of understanding about things they care about.",
+  },
 };
 
 // prettier-ignore
 const writingGuidelines = [
-  `Write in mdx, with appropriate formatting (bold, italics, headings, <Callout>, <Steps> etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
+  `Write in mdx, with appropriate formatting (bold, italics, headings, bullet points, <Callout>, <Steps> etc). We're going to use this as a page in nextra-docs. Use Callouts when needed. Steps look like this:
 <Steps>
 ### Step 1
 
@@ -237,13 +242,12 @@ Contents
 Contents
 </Steps>`,
   "Write only the section, no need to talk to me when you're writing it.",
-  "Write it as an expert in the themes, but for the intended audience.",
+  "Write it as an expert in the themes, but for the intended audience",
   "Don't put mdx code blocks around the output, just start writing.",
   "Presume that the other sections are written.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
-  "Provide examples when needed from your knowledge.",
-  "Use bullet points to simplify when possible.",
+  "Provide examples when needed.",
   "Make sure to start headings in each section and subsection at the top level (#).",
 ];
 
