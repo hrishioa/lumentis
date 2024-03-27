@@ -4,6 +4,10 @@ import dirTree from "directory-tree";
 import fs from "node:fs";
 import path from "node:path";
 import {
+    MAX_TOKEN_LIMIT,
+    lumentisFolderPath
+  } from "./constants";
+import {
     Separator,
     checkbox,
     confirm,
@@ -20,8 +24,7 @@ import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 import { file, sleep } from 'bun';
 
 
-export var folderTokenTotal: Number = 0;
-export var maxTokenLimit: Number = 200000;
+export var folderTokenTotal: number = 0;
 export function resetFolderTokenTotal() {
     folderTokenTotal = 0;
 }
@@ -35,7 +38,7 @@ export function resetFolderTokenTotal() {
 const readableMimeTypes = ['text', 'message']
 const readableApplicationSubtypes = ['json', 'xml', 'yaml', 'rtf', 'rtx']
 // TODO: Does the below require `parsePlatformIndependentPath`?
-const programming_extensions = JSON.parse(fs.readFileSync(path.join('..', 'assets', 'programming_language_extensions.json'), 'utf-8'));
+const programming_extensions = JSON.parse(fs.readFileSync(path.join(__dirname,'..', 'assets', 'programming_language_extensions.json'), 'utf-8'));
 const allowed_extensions = programming_extensions.filter(language => language.type == 'programming').map(language => language.extensions).flat();
 
 
@@ -209,7 +212,7 @@ export async function run() {
             }
             var first_time = true;
             var selectedFiles: string[] = [];
-            while (first_time || folderTokenTotal > maxTokenLimit) {
+            while (first_time || folderTokenTotal > MAX_TOKEN_LIMIT) {
                 first_time = false;
                 if (!first_time) {
                     console.log("You've selected too many tokens. Please deselect files to exclude.");
@@ -219,7 +222,7 @@ export async function run() {
                 selectedFiles = await checkbox({
                     pageSize: 8,
                     loop: false,
-                    message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${maxTokenLimit.toLocaleString()}. 
+                    message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${MAX_TOKEN_LIMIT.toLocaleString()}. 
                     Please deselect files to exclude.
                     Note: If you deselect a folder, all files within it will be excluded.
                     Note: Some files do not appear as we don't believe we can read them. `,
@@ -232,4 +235,4 @@ export async function run() {
     }
 }
 
-run()
+// run()

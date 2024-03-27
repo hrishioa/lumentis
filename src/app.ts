@@ -25,10 +25,11 @@ import {
   RUNNERS,
   WRITING_STYLE_SIZE_LIMIT,
   lumentisFolderPath,
+  MAX_TOKEN_LIMIT,
   wizardStatePath
 } from "./constants";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
-import { resetFolderTokenTotal, allExclusions, folderTokenTotal, maxTokenLimit, checkFileIsReadable, recursivelyRemoveExcludedFilesAndAddTokenCount, recursivelyFlattenFileTreeForCheckbox } from "./folder-importing-utils";
+import { resetFolderTokenTotal, allExclusions, folderTokenTotal, checkFileIsReadable, recursivelyRemoveExcludedFilesAndAddTokenCount, recursivelyFlattenFileTreeForCheckbox } from "./folder-importing-utils";
 import {
   getAudienceInferenceMessages,
   getDescriptionInferenceMessages,
@@ -116,19 +117,19 @@ async function runWizard() {
       "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFileOrFolderName || undefined,
     validate: (filename) => {
-        var parsed_filename = parsePlatformIndependentPath(filename);
-        if (
-            filename?.trim() &&
-            !fs.existsSync(parsed_filename)
-        )
-            return `File not found - tried to load ${filename}. Try again.`;
-        var file_stats = fs.lstatSync(parsed_filename);
-        if (filename?.trim() && file_stats.isFile() && !checkFileIsReadable(parsed_filename)) {
-            return `File type not supported - tried to load ${filename}. Try again.`;
-        } else if (filename?.trim() && !file_stats.isDirectory() && !file_stats.isFile()) {
-            return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
-        }
-        return true;
+      var parsed_filename = parsePlatformIndependentPath(filename);
+      if (
+        filename?.trim() &&
+        !fs.existsSync(parsed_filename)
+      )
+        return `File not found - tried to load ${filename}. Try again.`;
+      var file_stats = fs.lstatSync(parsed_filename);
+      if (filename?.trim() && file_stats.isFile() && !checkFileIsReadable(parsed_filename)) {
+        return `File type not supported - tried to load ${filename}. Try again.`;
+      } else if (filename?.trim() && !file_stats.isDirectory() && !file_stats.isFile()) {
+        return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
+      }
+      return true;
     }
   });
 
@@ -146,41 +147,43 @@ async function runWizard() {
       wizardState.loadedPrimarySource = dataFromFile;
     } else if (fs.lstatSync(parsed_filename).isDirectory()) {
       const fileTree = dirTree(parsed_filename, { exclude: allExclusions, attributes: ["size", "type", "extension"] });
-            recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
-            if (!fileTree.children) {
-                console.log("No files found in directory. Try again.");
-                return;
-            }
-            var first_time = true;
-            var selectedFiles: string[] = [];
-            while (first_time || folderTokenTotal > maxTokenLimit) {
-                first_time = false;
-                resetFolderTokenTotal();
-                if (!first_time) {
-                    console.log("You've selected too many tokens. Please deselect files to exclude.");
-                }
-                first_time = false;
-                var file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
-                selectedFiles = await checkbox({
-                    pageSize: 8,
-                    loop: false,
-                    message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${maxTokenLimit.toLocaleString()}. 
+      resetFolderTokenTotal();
+      recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
+      if (!fileTree.children) {
+        console.log("No files found in directory. Try again.");
+        return;
+      }
+      var first_time = true;
+      var selectedFiles: string[] = [];
+      while (first_time || folderTokenTotal > MAX_TOKEN_LIMIT) {
+        first_time = false;
+        if (!first_time) {
+          console.log("You've selected too many tokens. Please deselect files to exclude.");
+        }
+        first_time = false;
+        var file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+        selectedFiles = await checkbox({
+          pageSize: 8,
+          loop: false,
+          message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${MAX_TOKEN_LIMIT.toLocaleString()}. 
                     Please deselect files to exclude.
                     Note: If you deselect a folder, all files within it will be excluded.
                     Note: Some files do not appear as we don't believe we can read them. `,
-                    choices: file_choices,
-                });
-                resetFolderTokenTotal();
-                recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
-            }
+          choices: file_choices,
+        });
+        resetFolderTokenTotal();
+        recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
+      }
 
-            // TODO: Is this the  best way to handle this?
-            wizardState.loadedPrimarySource = selectedFiles.map((filepath) => {
-              const header = `<NEW_FILE: ${filepath}>\n`;
-              const content = fs.readFileSync(parsePlatformIndependentPath(filepath), "utf-8");
-              return `${header}${content}\n</NEW_FILE>\n`;
-            }).join("\n\n____________________\n\n");
-            
+      // TODO: Is this the  best way to handle this?
+      wizardState.loadedPrimarySource = selectedFiles.filter((filepath) =>
+        fs.lstatSync(filepath).isFile()
+      ).map((filepath) => {
+        const header = `<NEW_FILE: ${filepath}>\n`;
+        const content = fs.readFileSync(parsePlatformIndependentPath(filepath), "utf-8");
+        return `${header}${content}\n</NEW_FILE>\n`;
+      }).join("\n\n____________________\n\n");
+
 
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");
@@ -188,7 +191,7 @@ async function runWizard() {
     }
 
 
-    
+
   } else {
     const editorName = await select({
       message:
@@ -222,9 +225,8 @@ async function runWizard() {
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${
-        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
-      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      message: `Your content looks a little too large by about ${CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+        } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
@@ -513,13 +515,12 @@ async function runWizard() {
   );
 
   const questionPermission = await confirm({
-    message: `Are you okay ${
-      wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
-      questionsMessages,
-      2048,
-      wizardState.smarterModel
-    ).toFixed(4)}): `,
+    message: `Are you okay ${wizardState.ambiguityExplained ? "re" : ""
+      }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+        questionsMessages,
+        2048,
+        wizardState.smarterModel
+      ).toFixed(4)}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -709,9 +710,8 @@ async function runWizard() {
 
         const flattened = [
           {
-            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
-              section.title
-            }`,
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${section.title
+              }`,
             value: levels.concat([section.permalink]).join("->"),
             checked: !section.disabled
           }
