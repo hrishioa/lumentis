@@ -27,9 +27,9 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
       devstart: "next dev -p 5656 & node start.js",
       dev: "next dev -p 5656",
       build: "next build",
-      start: "next start",
+      start: "next start"
     },
-    keywords: wizardState.coreThemes?.split(",").map((kw) => kw.trim()) || [],
+    keywords: wizardState.coreThemes?.split(",").map((kw) => kw.trim()) || []
   };
 
   fs.writeFileSync(
@@ -173,7 +173,7 @@ export function idempotentlySetupNextraDocs(
       `${runner.command} ${runner.installPrefix} react react-dom next nextra nextra-theme-docs typescript @types/node`,
       {
         cwd: directory,
-        stdio: "inherit",
+        stdio: "inherit"
       }
     );
   } catch (err) {
@@ -205,7 +205,7 @@ export async function generatePages(
 
   if (startNextra) {
     const devProcess = exec(`${preferredRunner.command} run devstart`, {
-      cwd: path.join(pagesFolder, ".."),
+      cwd: path.join(pagesFolder, "..")
       // stdio: "ignore",
       // detached: true,
     });
@@ -255,7 +255,7 @@ export async function generatePages(
               ...JSON.parse(
                 fs.readFileSync(path.join(pagesFolder, "_meta.json"), "utf-8")
               ),
-              [pages[0].section.permalink]: "Basics",
+              [pages[0].section.permalink]: "Basics"
             })
           );
         }

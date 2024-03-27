@@ -19,8 +19,8 @@ Please generate up to 10 possible names for documentation we want to build, for 
     },
     {
       role: "assistant",
-      content: "[",
-    },
+      content: "["
+    }
   ];
 }
 
@@ -42,8 +42,8 @@ Please generate up to 10 words describing the intended audience for creating doc
     },
     {
       role: "assistant",
-      content: "[",
-    },
+      content: "["
+    }
   ];
 }
 
@@ -62,8 +62,8 @@ Please generate up to 10 possible keywords referring to industries, technologies
     },
     {
       role: "assistant",
-      content: "[",
-    },
+      content: "["
+    }
   ];
 }
 
@@ -80,7 +80,7 @@ ${primarySource}
 
 Please provide a three sentence description of the information in PrimarySource. Is this a conversation transcript, an article, etc? What is it about? what are the key themes and who is this likely by and for? No newlines.
 `
-    },
+    }
   ];
 }
 
@@ -113,8 +113,8 @@ We want to build proper comprehensive docs for what's in PrimarySource. Can you 
     },
     {
       role: "assistant",
-      content: "[",
-    },
+      content: "["
+    }
   ];
 }
 
@@ -127,7 +127,7 @@ export function getOutlineRegenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline),
+      content: JSON.stringify(selectedOutline)
     },
     // prettier-ignore
     {
@@ -138,8 +138,8 @@ Follow the Outline typespec.
     },
     {
       role: "assistant",
-      content: "{",
-    },
+      content: "{"
+    }
   ];
 }
 
@@ -211,8 +211,8 @@ type Outline = {
     },
     {
       role: "assistant",
-      content: "{",
-    },
+      content: "{"
+    }
   ];
 }
 
@@ -220,13 +220,13 @@ const optionalWritingGuidelines = {
   diagramsAndLatex: {
     guideline:
       "Add mermaid diagrams in markdown (```mermaid) and latex (surrounded by $) when needed.",
-    index: 1,
+    index: 1
   },
   deeplyTechnical: {
     index: 3,
     guideline:
-      "Only write about what is in PrimarySource, for the intended audience at their level of understanding about things they care about.",
-  },
+      "Only write about what is in PrimarySource, for the intended audience at their level of understanding about things they care about."
+  }
 };
 
 // prettier-ignore
@@ -248,7 +248,7 @@ Contents
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
   "Provide examples when needed.",
-  "Make sure to start headings in each section and subsection at the top level (#).",
+  "Make sure to start headings in each section and subsection at the top level (#)."
 ];
 
 export function getPageGenerationInferenceMessages(
@@ -266,7 +266,7 @@ export function getPageGenerationInferenceMessages(
         optionalWritingGuidelines.diagramsAndLatex.guideline,
         ...writingGuidelines.slice(
           optionalWritingGuidelines.diagramsAndLatex.index
-        ),
+        )
       ]
     : writingGuidelines.slice(0, -1);
 
@@ -274,7 +274,7 @@ export function getPageGenerationInferenceMessages(
     ...outlineGenerationMessages.slice(0, -1),
     {
       role: "assistant",
-      content: JSON.stringify(selectedOutline),
+      content: JSON.stringify(selectedOutline)
     },
     // prettier-ignore
     {
@@ -293,6 +293,6 @@ ${
         .join(", ")} will be written later, and don't need to elaborated here.`
     : ""
 }`
-    },
+    }
   ];
 }

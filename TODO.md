@@ -18,10 +18,6 @@
 9. Node process still continues to run sometimes irreproducibly - weird, needs to get killed off specifically
 10. Using things larger than the context window
 11. We can do this by maintaining an almost DP-like state of outlines and pages, and then asking for updates with more information. Works when there's a primary source and secondaries, and also still pretty expensive.
-12. JSON parsing on the questions set
-13. OpenAI, Gemini, openrouter, etc.
-14. Add the section regeneration notes to the final generation prompt
-15. Enable resume after cutoff.
-16. Check that outline comments are being added to state only AFTER the outline generates successfully.
-17. continue generation on partial outline.
-18. Core themes when entered by the user aren't being saved?
+12. OpenAI, Gemini, openrouter, etc.
+13. Add token counting to primary source to try and warn early.
+14. Use relative permalinks in the prompt to make links better.
