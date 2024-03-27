@@ -9,14 +9,16 @@
     "@anthropic-ai/tokenizer": "^0.0.4",
     "@inquirer/prompts": "^4.3.0",
     "cross-spawn": "^7.0.3",
-    "typescript": "^5.4.3"
+    "directory-tree": "^3.5.1",
+    "mime-types": "^2.1.35",
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
     "@swc/core": "^1.4.8",
-    "@types/node": "^20.11.30",
     "@types/bun": "latest",
     "@types/cross-spawn": "^6.0.6",
+    "@types/node": "^20.11.30",
     "tsup": "^8.0.2"
   },
   "main": "dist/app.js",
@@ -28,7 +30,9 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"

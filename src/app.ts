@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import dirTree from "directory-tree";
 import { countTokens } from "@anthropic-ai/tokenizer";
 import {
   Separator,
@@ -27,6 +28,7 @@ import {
   wizardStatePath
 } from "./constants";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
+import { resetFolderTokenTotal, allExclusions, folderTokenTotal, maxTokenLimit, checkFileIsReadable, recursivelyRemoveExcludedFilesAndAddTokenCount, recursivelyFlattenFileTreeForCheckbox } from "./folder-importing-utils";
 import {
   getAudienceInferenceMessages,
   getDescriptionInferenceMessages,
@@ -112,26 +114,81 @@ async function runWizard() {
   const fileName = await input({
     message:
       "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
-    default: wizardState.primarySourceFilename || undefined,
+    default: wizardState.primarySourceFileOrFolderName || undefined,
     validate: (filename) => {
-      if (
-        filename?.trim() &&
-        !fs.existsSync(parsePlatformIndependentPath(filename))
-      )
-        return `File not found - tried to load ${filename}. Try again.`;
-      return true;
+        var parsed_filename = parsePlatformIndependentPath(filename);
+        if (
+            filename?.trim() &&
+            !fs.existsSync(parsed_filename)
+        )
+            return `File not found - tried to load ${filename}. Try again.`;
+        var file_stats = fs.lstatSync(parsed_filename);
+        if (filename?.trim() && file_stats.isFile() && !checkFileIsReadable(parsed_filename)) {
+            return `File type not supported - tried to load ${filename}. Try again.`;
+        } else if (filename?.trim() && !file_stats.isDirectory() && !file_stats.isFile()) {
+            return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
+        }
+        return true;
     }
   });
 
   if (fileName.trim()) {
-    wizardState.primarySourceFilename = parsePlatformIndependentPath(fileName);
+    var parsed_filename = parsePlatformIndependentPath(fileName);
+    wizardState.primarySourceFileOrFolderName = parsed_filename;
 
-    const dataFromFile = fs.readFileSync(
-      wizardState.primarySourceFilename,
-      "utf-8"
-    );
+    if (fs.lstatSync(parsed_filename).isFile()) {
 
-    wizardState.loadedPrimarySource = dataFromFile;
+      const dataFromFile = fs.readFileSync(
+        wizardState.primarySourceFileOrFolderName,
+        "utf-8"
+      );
+
+      wizardState.loadedPrimarySource = dataFromFile;
+    } else if (fs.lstatSync(parsed_filename).isDirectory()) {
+      const fileTree = dirTree(parsed_filename, { exclude: allExclusions, attributes: ["size", "type", "extension"] });
+            recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
+            if (!fileTree.children) {
+                console.log("No files found in directory. Try again.");
+                return;
+            }
+            var first_time = true;
+            var selectedFiles: string[] = [];
+            while (first_time || folderTokenTotal > maxTokenLimit) {
+                first_time = false;
+                resetFolderTokenTotal();
+                if (!first_time) {
+                    console.log("You've selected too many tokens. Please deselect files to exclude.");
+                }
+                first_time = false;
+                var file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+                selectedFiles = await checkbox({
+                    pageSize: 8,
+                    loop: false,
+                    message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${maxTokenLimit.toLocaleString()}. 
+                    Please deselect files to exclude.
+                    Note: If you deselect a folder, all files within it will be excluded.
+                    Note: Some files do not appear as we don't believe we can read them. `,
+                    choices: file_choices,
+                });
+                resetFolderTokenTotal();
+                recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
+            }
+
+            // TODO: Is this the  best way to handle this?
+            wizardState.loadedPrimarySource = selectedFiles.map((filepath) => {
+              const header = `<NEW_FILE: ${filepath}>\n`;
+              const content = fs.readFileSync(parsePlatformIndependentPath(filepath), "utf-8");
+              return `${header}${content}\n</NEW_FILE>\n`;
+            }).join("\n\n____________________\n\n");
+            
+
+    } else {
+      console.log("Doesn't seem to be a file or a directory. Exiting.");
+      return;
+    }
+
+
+    
   } else {
     const editorName = await select({
       message:

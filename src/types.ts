@@ -25,7 +25,7 @@ export type WizardState = Partial<{
   gotDirectoryPermission: boolean;
   smarterModel: string;
   streamToConsole: boolean;
-  primarySourceFilename: string;
+  primarySourceFileOrFolderName: string;
   loadedPrimarySource: string;
   anthropicKey: string;
   description: string;
