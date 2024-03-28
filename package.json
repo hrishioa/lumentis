@@ -8,6 +8,7 @@
     "@anthropic-ai/sdk": "^0.19.0",
     "@anthropic-ai/tokenizer": "^0.0.4",
     "@inquirer/prompts": "^4.3.0",
+    "chalk": "^5.3.0",
     "cross-spawn": "^7.0.3",
     "directory-tree": "^3.5.1",
     "mime-types": "^2.1.35",
@@ -16,7 +17,7 @@
     "nextra-theme-docs": "^2.13.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "typescript": "^5.4.3"
+    "typescript": "^5.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
@@ -35,7 +36,9 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"

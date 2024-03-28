@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import chalk from 'chalk';
 import { countTokens } from "@anthropic-ai/tokenizer";
 import {
   Separator,
@@ -179,14 +180,16 @@ async function runWizard() {
           console.log("=You've selected too many tokens. Please deselect files to exclude.");
         }
         first_time = false;
+        const userTokenColor = folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET ? chalk.red : chalk.green;
+
         selectedFiles = await checkbox({
           pageSize: 8,
           loop: false,
-          message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
-Your current file token count is ${folderTokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(folderTokenTotal + promptTokens).toLocaleString()}.
-Please deselect files to exclude.
-Note: If you deselect a folder, all files within it will be excluded.
-Note: Some files do not appear as we don't believe we can read them. `,
+          message: `The token limit is ${chalk.green(CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString())}. 
+Your current file token count is ${userTokenColor(folderTokenTotal.toLocaleString())}, with ${userTokenColor(promptTokens.toLocaleString())} for the prompt, for a total of ${userTokenColor(chalk.bold((folderTokenTotal + promptTokens).toLocaleString()))}.
+Please deselect files to exclude.\n` 
+              + chalk.grey(chalk.italic("Note:")+" If you deselect a folder, all files within it will be excluded.\n")
+              + chalk.grey(chalk.italic("Note:")+" Some files do not appear as we don't believe we can read them.\n"),
           choices: file_choices
         });
         resetFolderTokenTotal();
@@ -203,7 +206,7 @@ Note: Some files do not appear as we don't believe we can read them. `,
       });
 
       if (!confirmFiles) {
-        console.log("\nNo problem! You can run me again to adjust the source.");
+        console.log(chalk.yellow("\nNo problem! You can run me again to adjust the source."));
         return;
       }
 
