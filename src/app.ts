@@ -169,19 +169,16 @@ async function runWizard() {
       }
       let first_time = true;
       let selectedFiles: string[] = [];
-      while (first_time || folderTokenTotal > MAX_TOKEN_LIMIT) {
-        first_time = false;
+      while (first_time || folderTokenTotal > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
-          console.log(
-            "You've selected too many tokens. Please deselect files to exclude."
-          );
+          console.log("\x1b[31mYou've selected too many tokens. Please deselect files to exclude.\x1b[0m"); // red color, TODO: check prints properly across console options
         }
         first_time = false;
         const file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
         selectedFiles = await checkbox({
           pageSize: 8,
           loop: false,
-          message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${MAX_TOKEN_LIMIT.toLocaleString()}. 
+          message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
 Please deselect files to exclude.
 Note: If you deselect a folder, all files within it will be excluded.
 Note: Some files do not appear as we don't believe we can read them. `,
@@ -191,18 +188,37 @@ Note: Some files do not appear as we don't believe we can read them. `,
         recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
       }
 
+      const flattenedSelection = recursivelyFlattenFileTreeForCheckbox(fileTree)
+
+      const confirmFiles = await confirm({
+        message:
+          `${flattenedSelection.map(val => val.name).join('\n')}\nHere is your list of files. Confirm?`,
+        default: wizardState.streamToConsole || false,
+        transformer: (answer) => (answer ? "👍" : "👎")
+      });
+
+      if (!confirmFiles) {
+        console.log("\nNo problem! You can run me again to adjust the source.");
+        return;
+      }
+
+
+
       // TODO: Is this the  best way to handle this?
-      wizardState.loadedPrimarySource = selectedFiles
-        .filter((filepath) => fs.lstatSync(filepath).isFile())
-        .map((filepath) => {
-          const header = `<NEW_FILE: ${filepath}>\n`;
+      wizardState.loadedPrimarySource = flattenedSelection
+        .filter((file) => fs.lstatSync(file.value).isFile())
+        .map((file) => {
+          const header = `<NEW_FILE: ${file.value}>\n`;
           const content = fs.readFileSync(
-            parsePlatformIndependentPath(filepath),
+            parsePlatformIndependentPath(file.value),
             "utf-8"
           );
           return `${header}${content}\n</NEW_FILE>\n`;
         })
         .join("\n\n____________________\n\n");
+
+        console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
+        
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");
       return;
