@@ -188,8 +188,8 @@ async function runWizard() {
           message: `The token limit is ${chalk.green(CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString())}. 
 Your current file token count is ${userTokenColor(folderTokenTotal.toLocaleString())}, with ${userTokenColor(promptTokens.toLocaleString())} for the prompt, for a total of ${userTokenColor(chalk.bold((folderTokenTotal + promptTokens).toLocaleString()))}.
 Please deselect files to exclude.\n` 
-              + chalk.grey(chalk.italic("Note:")+" If you deselect a folder, all files within it will be excluded.\n")
-              + chalk.grey(chalk.italic("Note:")+" Some files do not appear as we don't believe we can read them.\n"),
+              + chalk.yellow.italic("Note:")+chalk.grey(" If you deselect a folder, all files within it will be excluded.\n")
+              + chalk.yellow.italic("Note:")+chalk.grey(" Some files do not appear as we don't believe we can read them.\n"),
           choices: file_choices
         });
         resetFolderTokenTotal();
@@ -200,7 +200,7 @@ Please deselect files to exclude.\n`
 
       const confirmFiles = await confirm({
         message:
-          `${file_choices.map(val => val.name).join('\n')}\nHere is your list of files. Confirm?`,
+          `${chalk.blue(file_choices.map(val => val.name).join('\n'))}\nAbove is your list of files. Confirm?`,
         default: wizardState.streamToConsole || false,
         transformer: (answer) => (answer ? "👍" : "👎")
       });
@@ -213,7 +213,7 @@ Please deselect files to exclude.\n`
       // TODO: Is this the  best way to handle this?
       wizardState.loadedPrimarySource = combineFilesToString(file_choices)
 
-      console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
+      console.log(`We've successfully added ${chalk.green(folderTokenTotal.toLocaleString())} tokens from the selected files.`);
         
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");
