@@ -3,26 +3,9 @@ import mime from 'mime-types';
 import dirTree from "directory-tree";
 import fs from "node:fs";
 import path from "node:path";
-import {
-    MAX_TOKEN_LIMIT,
-    lumentisFolderPath
-  } from "./constants";
-import {
-    Separator,
-    checkbox,
-    confirm,
-    editor,
-    input,
-    password,
-    select
-} from "@inquirer/prompts";
-import { getClaudeCosts, runClaudeInference } from "./ai";
 import { countTokens } from "@anthropic-ai/tokenizer";
 
-import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
-import { file, sleep } from 'bun';
-
+import { parsePlatformIndependentPath } from "./utils";
 
 export var folderTokenTotal: number = 0;
 export function resetFolderTokenTotal() {
@@ -176,63 +159,3 @@ export function recursivelyFlattenFileTreeForCheckbox(fileTree: dirTree.Director
     return []
 }
 
-export async function run() {
-    const fileName = await input({
-        message:
-            "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
-        default: undefined,
-        validate: (filename) => {
-            var parsed_filename = parsePlatformIndependentPath(filename);
-            if (
-                filename?.trim() &&
-                !fs.existsSync(parsed_filename)
-            )
-                return `File not found - tried to load ${filename}. Try again.`;
-            var file_stats = fs.lstatSync(parsed_filename);
-            if (filename?.trim() && file_stats.isFile() && !checkFileIsReadable(parsed_filename)) {
-                return `File type not supported - tried to load ${filename}. Try again.`;
-            } else if (filename?.trim() && !file_stats.isDirectory() && !file_stats.isFile()) {
-                return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
-            }
-            return true;
-        }
-    });
-    // const fileName = '/Users/hebe/Dropbox/Code/hrishi/ai_stuff/lumentis'
-    if (fileName.trim()) {
-        var parsed_filename = parsePlatformIndependentPath(fileName);
-
-        if (fs.lstatSync(parsed_filename).isDirectory()) {
-
-
-            const fileTree = dirTree(parsed_filename, { exclude: allExclusions, attributes: ["size", "type", "extension"] });
-            recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
-            if (!fileTree.children) {
-                console.log("No files found in directory. Try again.");
-                return;
-            }
-            var first_time = true;
-            var selectedFiles: string[] = [];
-            while (first_time || folderTokenTotal > MAX_TOKEN_LIMIT) {
-                first_time = false;
-                if (!first_time) {
-                    console.log("You've selected too many tokens. Please deselect files to exclude.");
-                }
-                first_time = false;
-                var file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
-                selectedFiles = await checkbox({
-                    pageSize: 8,
-                    loop: false,
-                    message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${MAX_TOKEN_LIMIT.toLocaleString()}. 
-                    Please deselect files to exclude.
-                    Note: If you deselect a folder, all files within it will be excluded.
-                    Note: Some files do not appear as we don't believe we can read them. `,
-                    choices: file_choices,
-                });
-                folderTokenTotal = 0;
-                recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
-            }
-        }
-    }
-}
-
-// run()

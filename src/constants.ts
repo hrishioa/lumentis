@@ -7,7 +7,7 @@ export const lumentisFolderPath = path.join(process.cwd(), LUMENTIS_FOLDER);
 export const wizardStatePath = path.join(lumentisFolderPath, WIZARD_STATE_FILE);
 
 export const WRITING_STYLE_SIZE_LIMIT = 10000;
-export const MAX_TOKEN_LIMIT = 20000;
+export const MAX_TOKEN_LIMIT = 200000; // TODO: do we want to drop this to allow for output token context?
 
 export const MAX_HEADING_CHAR_LENGTH = 50;
 export const NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE = 200;
