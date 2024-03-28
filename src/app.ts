@@ -53,6 +53,10 @@ import {
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
 import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
+function styleNote(noteText: string) {
+  return `${chalk.yellow.italic("Note: ")} ${chalk.grey(noteText)}\n`
+}
+
 async function runWizard() {
   function saveState(state: WizardState) {
     if (!fs.existsSync(lumentisFolderPath)) fs.mkdirSync(lumentisFolderPath);
@@ -65,10 +69,9 @@ async function runWizard() {
 
   // prettier-ignore
   console.log(
-    `Welcome to Lumentis! Let's build you some docs. Some things to keep in mind:
-- I'll be saving config files (state, LLM messages) in a folder called ${LUMENTIS_FOLDER} in the current directory.
-- If you'd like to repeat any steps, Ctrl+C and just start over.
-`
+    `${chalk.green.bold("Welcome to Lumentis!")} Let's build you some docs.\n` 
+    + styleNote(`I'll be saving config files (state, LLM messages) in a folder called ${chalk.blue(LUMENTIS_FOLDER)} in the current directory.`)
+    + styleNote("If you'd like to repeat any steps, Ctrl+C and just start over.")
   );
 
   // Ask for directory permissions
@@ -82,7 +85,7 @@ async function runWizard() {
 
     if (!wizardState.gotDirectoryPermission) {
       console.log(
-        "No problem! Start me again in a clean directory. Bye for now!"
+        chalk.yellow("No problem! Start me again in a clean directory. Bye for now!")
       );
       return;
     }
@@ -94,7 +97,7 @@ async function runWizard() {
 
   wizardState.smarterModel = await select({
     message:
-      "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
+      "Pick a model for meta inference.\n" + styleNote("Smarter is preferred, you can use a cheaper model for the actual writing later."),
     choices: [
       ...CLAUDE_MODELS.map((model) => ({
         name: model.name,
@@ -167,7 +170,7 @@ async function runWizard() {
       resetFolderTokenTotal();
       recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
       if (!fileTree.children) {
-        console.log("No files found in directory. Try again.");
+        console.log(chalk.yellow("No files found in directory. Try again."));
         return;
       }
 
@@ -177,7 +180,7 @@ async function runWizard() {
       let promptTokens = getAdditionalPromptTokens(file_choices);
       while (first_time || folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
-          console.log("=You've selected too many tokens. Please deselect files to exclude.");
+          console.log(chalk.yellow("You've selected too many tokens. Please deselect files to exclude."));
         }
         first_time = false;
         const userTokenColor = folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET ? chalk.red : chalk.green;
@@ -188,8 +191,8 @@ async function runWizard() {
           message: `The token limit is ${chalk.green(CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString())}. 
 Your current file token count is ${userTokenColor(folderTokenTotal.toLocaleString())}, with ${userTokenColor(promptTokens.toLocaleString())} for the prompt, for a total of ${userTokenColor(chalk.bold((folderTokenTotal + promptTokens).toLocaleString()))}.
 Please deselect files to exclude.\n` 
-              + chalk.yellow.italic("Note:")+chalk.grey(" If you deselect a folder, all files within it will be excluded.\n")
-              + chalk.yellow.italic("Note:")+chalk.grey(" Some files do not appear as we don't believe we can read them.\n"),
++ styleNote("If you deselect a folder, all files within it will be excluded.")
++ styleNote("Some files do not appear as we don't believe we can read them."),
           choices: file_choices
         });
         resetFolderTokenTotal();
@@ -216,13 +219,13 @@ Please deselect files to exclude.\n`
       console.log(`We've successfully added ${chalk.green(folderTokenTotal.toLocaleString())} tokens from the selected files.`);
         
     } else {
-      console.log("Doesn't seem to be a file or a directory. Exiting.");
+      console.log(chalk.yellow("Doesn't seem to be a file or a directory. Exiting."));
       return;
     }
   } else {
     const editorName = await select({
       message:
-        "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
+        "Because there's a chance you never changed $EDITOR from "+chalk.red("vim")+", pick an editor!",
       choices: EDITORS.filter((editor) =>
         isCommandAvailable(editor.command)
       ).map((editor) => ({
@@ -253,7 +256,7 @@ Please deselect files to exclude.\n`
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
       message: `Your content looks a little too large by about ${
-        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+        chalk.red(CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens)
       } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
@@ -294,11 +297,11 @@ Please deselect files to exclude.\n`
   );
 
   const description = await input({
-    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${chalk.yellow(getClaudeCosts(
       descriptionInferenceMessages,
       700,
       wizardState.smarterModel
-    ).toFixed(4)}): `,
+    ).toFixed(4))}): `,
     default: wizardState.description || undefined
   });
 
@@ -316,7 +319,7 @@ Please deselect files to exclude.\n`
 
     if (generatedDescription.success) {
       console.log(
-        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
+        `Generated description:\n${styleNote(`Edit this in ${wizardStatePath} if you need to and restart!`)} ${generatedDescription.response}\n\n`
       );
 
       wizardState.description = generatedDescription.response;
@@ -342,11 +345,11 @@ Please deselect files to exclude.\n`
   // Ask for title
 
   const title = await input({
-    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${chalk.yellow(getClaudeCosts(
       titleInferenceMessages,
       400,
       wizardState.smarterModel
-    ).toFixed(4)}): `,
+    ).toFixed(4))}): `,
     default: wizardState.title || undefined
   });
 
@@ -421,11 +424,11 @@ Please deselect files to exclude.\n`
   );
 
   const themesFromUser = await input({
-    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${chalk.yellow(getClaudeCosts(
       themesInferenceMessages,
       400,
       wizardState.smarterModel
-    ).toFixed(4)}): `,
+    ).toFixed(4))}): `,
     default: wizardState.coreThemes || undefined
   });
 
@@ -480,11 +483,11 @@ Please deselect files to exclude.\n`
   );
 
   const audienceFromUser = await input({
-    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${chalk.yellow(getClaudeCosts(
       audienceInferenceMessages,
       400,
       wizardState.smarterModel
-    ).toFixed(4)}): `,
+    ).toFixed(4))}): `,
     default:
       (wizardState.intendedAudience && wizardState.intendedAudience) ||
       undefined
@@ -545,11 +548,11 @@ Please deselect files to exclude.\n`
   const questionPermission = await confirm({
     message: `Are you okay ${
       wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${chalk.yellow(getClaudeCosts(
       questionsMessages,
       2048,
       wizardState.smarterModel
-    ).toFixed(4)}): `,
+    ).toFixed(4))}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -608,7 +611,7 @@ Please deselect files to exclude.\n`
 
   const writingExampleFilename = await input({
     message:
-      "Do you have an example of writing style you want to add in (adds cost but improves output, \nleave blank to skip. Drag in a file): ",
+      "Do you have an example of writing style you want to add in? \nLeave blank to skip. Drag in a file:\n"+ styleNote("adds cost but improves output"),
     default: wizardState.writingExampleFilename || undefined,
     validate: (filename) => {
       if (
@@ -656,18 +659,18 @@ Please deselect files to exclude.\n`
 
   if (!wizardState.generatedOutline || previousOutlineInvalidated) {
     const confirmOutline = await confirm({
-      message: `We're about to generate the outline (Costs $${getClaudeCosts(
+      message: `We're about to generate the outline (Costs $${chalk.yellow(getClaudeCosts(
         outlineQuestions,
         4096,
         wizardState.smarterModel
-      ).toFixed(4)}). Confirm: `,
+      ).toFixed(4))}). Confirm: `,
       default: true,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!confirmOutline) {
       console.log(
-        "No problem! You can run me again to generate the outline later."
+        chalk.yellow("No problem! You can run me again to generate the outline later.")
       );
       return;
     }
@@ -689,7 +692,7 @@ Please deselect files to exclude.\n`
       wizardState.generatedOutline = outlineResponse.response;
     } else {
       console.log(
-        "Couldn't generate the outline. You can run me again to retry."
+        chalk.yellow( "Couldn't generate the outline. You can run me again to retry.")
       );
       return;
     }
@@ -716,7 +719,7 @@ Please deselect files to exclude.\n`
 
   while (true) {
     if (!wizardState.generatedOutline) {
-      console.log("No outline generated. Exiting. Run me again perhaps?");
+      console.log(chalk.yellow("No outline generated. Exiting. Run me again perhaps?"));
       return;
     }
 
@@ -796,7 +799,7 @@ Please deselect files to exclude.\n`
 
     console.log("Selected outline: \n");
     console.log(
-      flatListForDisplay.map((section) => section.name).join("\n") + "\n"
+      chalk.blue(flatListForDisplay.map((section) => section.name).join("\n")) + "\n"
     );
 
     const outlineCopyForImprovements = JSON.parse(
@@ -816,11 +819,11 @@ Please deselect files to exclude.\n`
     if (!wizardState.outlineComments) wizardState.outlineComments = "";
 
     const newSections = await input({
-      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getClaudeCosts(
+      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${chalk.yellow(getClaudeCosts(
         regenerateOutlineInferenceMessages,
         4096,
         wizardState.smarterModel
-      ).toFixed(4)}): `
+      ).toFixed(4))}): `
     });
 
     if (newSections.trim()) {
@@ -857,7 +860,7 @@ Please deselect files to exclude.\n`
         saveState(wizardState);
       } else {
         if (!confirm({ message: "Couldn't regenerate. Continue anyway?" })) {
-          console.log("You can run me again if you'd like!");
+          console.log(chalk.yellow("You can run me again if you'd like!"));
           return;
         } else {
           break;
@@ -869,13 +872,13 @@ Please deselect files to exclude.\n`
   }
 
   if (!wizardState.generatedOutline) {
-    console.log("No outline generated. Exiting. Run me again perhaps?");
+    console.log(chalk.yellow("No outline generated. Exiting. Run me again perhaps?"));
     return;
   }
 
   wizardState.addDiagrams = await confirm({
     message:
-      "Do you want to add diagrams, latex and flowcharts? (This works perfectly 98% of the time): ",
+      "Do you want to add diagrams, latex and flowcharts?\n" + styleNote("This works perfectly 98% of the time."),
     default: wizardState.addDiagrams || true,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -968,7 +971,7 @@ Please deselect files to exclude.\n`
 
   if (!wizardState.preferredRunnerForNextra) {
     console.log(
-      "No runner selected - Exiting. Run me again after installing something. You can install bun with `curl -fsSL https://bun.sh/install | bash`"
+      chalk.yellow("No runner selected - Exiting. Run me again after installing something. You can install bun with `curl -fsSL https://bun.sh/install | bash`")
     );
     return;
   }
@@ -1001,18 +1004,18 @@ Please deselect files to exclude.\n`
   }
 
   const finalCheck = await confirm({
-    message: "#######\n\nReady to start? ",
+    message: "#######\n\n"+chalk.green.bold("Ready to start? "),
     default: true,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   if (!finalCheck) {
-    console.log("No problem! You know where to find me.");
+    console.log(chalk.yellow("No problem! You know where to find me 😊"));
     return;
   }
 
   console.log(
-    "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
+    chalk.green("\n\nAnd we're off!")+" If this helps do find "+chalk.bold.green("https://github.com/hrishioa/lumentis")+" and drop a star!\n\n"
   );
 
   await generatePages(
