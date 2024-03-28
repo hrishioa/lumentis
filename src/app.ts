@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
+import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -116,28 +117,38 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
-    validate: (filename) => {
-      if (
-        filename?.trim() &&
-        !fs.existsSync(parsePlatformIndependentPath(filename))
-      )
-        return `File not found - tried to load ${filename}. Try again.`;
+    validate: async (filename) => {
+      if(filename?.trim()) {
+        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+        if (filename.includes("youtube.com")) {
+          try {
+            const transcript = await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            wizardState.primarySourceFilename = filename;
+          } catch(err) {
+            return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
+          }
+        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+          return `File not found - tried to load ${filename}. Try again.`;
+        } else {
+          try {
+            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+            wizardState.loadedPrimarySource = dataFromFile;
+            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
+          } catch(err) {
+            return `Couldn't read file - tried to load ${filename}. Try again.`;
+          }
+        }
+      }
       return true;
     }
   });
 
-  if (fileName.trim()) {
-    wizardState.primarySourceFilename = parsePlatformIndependentPath(fileName);
+  saveState(wizardState);
 
-    const dataFromFile = fs.readFileSync(
-      wizardState.primarySourceFilename,
-      "utf-8"
-    );
-
-    wizardState.loadedPrimarySource = dataFromFile;
-  } else {
+  if(!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
@@ -158,7 +169,8 @@ async function runWizard() {
       validate: (input) => {
         if (!input.trim()) return "Please enter something - ideally a lot!";
         return true;
-      }
+      },
+      default: wizardState.loadedPrimarySource
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
@@ -171,7 +183,7 @@ async function runWizard() {
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
       message: `Your content looks a little too large by about ${
-        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+        primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
       } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
