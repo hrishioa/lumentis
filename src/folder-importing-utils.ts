@@ -111,7 +111,7 @@ export function recursivelyRemoveExcludedFilesAndAddTokenCount(
             if (child.type === 'file') {
                 var fileTokens = child.size;
                 if (!user_selection) {
-                    fileTokens = countTokens(fs.readFileSync(parsePlatformIndependentPath(child.path), 'utf-8'));
+                    fileTokens = countTokens(fs.readFileSync(parsePlatformIndependentPath(child.path), 'utf-8')); // This gets expensive with large folders. User issue?
                 }
                 folderTokenTotal += fileTokens;
                 child.size = fileTokens;

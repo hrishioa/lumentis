@@ -166,9 +166,9 @@ async function runWizard() {
           pageSize: 8,
           loop: false,
           message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${MAX_TOKEN_LIMIT.toLocaleString()}. 
-                    Please deselect files to exclude.
-                    Note: If you deselect a folder, all files within it will be excluded.
-                    Note: Some files do not appear as we don't believe we can read them. `,
+Please deselect files to exclude.
+Note: If you deselect a folder, all files within it will be excluded.
+Note: Some files do not appear as we don't believe we can read them. `,
           choices: file_choices,
         });
         resetFolderTokenTotal();
