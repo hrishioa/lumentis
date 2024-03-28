@@ -176,7 +176,7 @@ async function runWizard() {
       let promptTokens = getAdditionalPromptTokens(file_choices);
       while (first_time || folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
-          console.log("=You've selected too many tokens. Please deselect files to exclude.");
+          console.log("You've selected too many tokens. Please deselect files to exclude.");
         }
         first_time = false;
         selectedFiles = await checkbox({
