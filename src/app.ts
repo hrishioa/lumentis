@@ -114,7 +114,7 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a folder or text file in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFileOrFolderName || undefined,
     validate: (filename) => {
       var parsed_filename = parsePlatformIndependentPath(filename);
