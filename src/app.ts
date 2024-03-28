@@ -34,7 +34,9 @@ import {
   folderTokenTotal,
   recursivelyFlattenFileTreeForCheckbox,
   recursivelyRemoveExcludedFilesAndAddTokenCount,
-  resetFolderTokenTotal
+  resetFolderTokenTotal,
+  combineFilesToString,
+  getAdditionalPromptTokens
 } from "./folder-importing-utils";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
@@ -167,18 +169,21 @@ async function runWizard() {
         console.log("No files found in directory. Try again.");
         return;
       }
+
       let first_time = true;
       let selectedFiles: string[] = [];
-      while (first_time || folderTokenTotal > CLAUDE_PRIMARYSOURCE_BUDGET) {
+      let file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+      let promptTokens = getAdditionalPromptTokens(file_choices);
+      while (first_time || folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
-          console.log("\x1b[31mYou've selected too many tokens. Please deselect files to exclude.\x1b[0m"); // red color, TODO: check prints properly across console options
+          console.log("=You've selected too many tokens. Please deselect files to exclude.");
         }
         first_time = false;
-        const file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
         selectedFiles = await checkbox({
           pageSize: 8,
           loop: false,
-          message: `Your current token count is ${folderTokenTotal.toLocaleString()}. The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
+          message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
+Your current file token count is ${folderTokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(folderTokenTotal + promptTokens).toLocaleString()}.
 Please deselect files to exclude.
 Note: If you deselect a folder, all files within it will be excluded.
 Note: Some files do not appear as we don't believe we can read them. `,
@@ -186,13 +191,13 @@ Note: Some files do not appear as we don't believe we can read them. `,
         });
         resetFolderTokenTotal();
         recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
+        file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+        promptTokens = getAdditionalPromptTokens(file_choices);
       }
-
-      const flattenedSelection = recursivelyFlattenFileTreeForCheckbox(fileTree)
 
       const confirmFiles = await confirm({
         message:
-          `${flattenedSelection.map(val => val.name).join('\n')}\nHere is your list of files. Confirm?`,
+          `${file_choices.map(val => val.name).join('\n')}\nHere is your list of files. Confirm?`,
         default: wizardState.streamToConsole || false,
         transformer: (answer) => (answer ? "👍" : "👎")
       });
@@ -202,22 +207,10 @@ Note: Some files do not appear as we don't believe we can read them. `,
         return;
       }
 
-
-
       // TODO: Is this the  best way to handle this?
-      wizardState.loadedPrimarySource = flattenedSelection
-        .filter((file) => fs.lstatSync(file.value).isFile())
-        .map((file) => {
-          const header = `<NEW_FILE: ${file.value}>\n`;
-          const content = fs.readFileSync(
-            parsePlatformIndependentPath(file.value),
-            "utf-8"
-          );
-          return `${header}${content}\n</NEW_FILE>\n`;
-        })
-        .join("\n\n____________________\n\n");
+      wizardState.loadedPrimarySource = combineFilesToString(file_choices)
 
-        console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
+      console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
         
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");

@@ -232,9 +232,8 @@ export function recursivelyFlattenFileTreeForCheckbox(
   if (fileTree.type === "file") {
     return [
       {
-        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}>${
-          fileTree.name
-        }`,
+        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}>${fileTree.name
+          }`,
         value: fileTree.path,
         checked: true
       }
@@ -261,4 +260,34 @@ export function recursivelyFlattenFileTreeForCheckbox(
     return file_choices;
   }
   return [];
+}
+
+function getHeaderPromptString(filepath) {
+  return `<NEW_FILE: ${filepath}>\n`
+}
+const footerPromptString = "\n</NEW_FILE>\n";
+const joinString = "\n\n____________________\n\n";
+
+export function getAdditionalPromptTokens(flat_selection: {name: string, value: string }[]) {
+  const promptString =  flat_selection
+    .filter((file) => !file.name.includes("📁"))
+    .map((file) => {
+      return getHeaderPromptString(file.value) + footerPromptString;
+    })
+    .join(joinString);
+    return countTokens(promptString);
+}
+
+export function combineFilesToString(flat_selection: { name: string, value: string, checked: boolean }[]) {
+  return flat_selection
+    .filter((file) => !file.name.includes("📁")) // Faster but more fragile than 'fs.lstatSync(file.value).isFile()'
+    .map((file) => {
+      const header = getHeaderPromptString(file.value);
+      const content = fs.readFileSync(
+        parsePlatformIndependentPath(file.value),
+        "utf-8"
+      );
+      return `${header}${content}${footerPromptString}`;
+    })
+    .join(joinString);
 }
