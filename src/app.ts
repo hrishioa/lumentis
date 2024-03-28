@@ -37,7 +37,12 @@ import {
   getThemeInferenceMessages,
   getTitleInferenceMessages
 } from "./prompts";
-import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
+import {
+  Outline,
+  OutlineSection,
+  ReadyToGeneratePage,
+  WizardState
+} from "./types";
 import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
@@ -794,18 +799,17 @@ async function runWizard() {
   });
 
   function getPageWritingMessages(
+    overallOutline: Outline,
     sections: OutlineSection[],
-    levels: string[],
     addDiagrams: boolean
   ): ReadyToGeneratePage[] {
     return sections.flatMap((section) => {
-      const sectionMessages = {
+      const sectionsReadyToGenerate: ReadyToGeneratePage = {
         section,
-        levels: levels.concat([section.permalink]),
+        levels: section.permalink.split(/(?<!\\)\//g).slice(1),
         messages: getPageGenerationInferenceMessages(
           outlineQuestions,
-          // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
-          wizardState.generatedOutline!,
+          overallOutline,
           section,
           addDiagrams
         )
@@ -813,18 +817,18 @@ async function runWizard() {
 
       if (section.subsections)
         return [
-          sectionMessages,
+          sectionsReadyToGenerate,
           ...getPageWritingMessages(
+            overallOutline,
             section.subsections,
-            levels.concat([section.permalink]),
             addDiagrams
           )
         ];
-      else return [sectionMessages];
+      else return [sectionsReadyToGenerate];
     });
   }
 
-  const cleanedOutline = JSON.parse(
+  const cleanedOutline: Outline = JSON.parse(
     JSON.stringify(wizardState.generatedOutline)
   );
 
@@ -832,11 +836,24 @@ async function runWizard() {
     cleanedOutline.sections
   );
 
+  // TODO: I know this is a bad place to put this function
+  // but it's like 2 am
+  function setPermalinksToRelatives(section: OutlineSection, levels: string[]) {
+    section.subsections?.forEach((subsection, i) => {
+      setPermalinksToRelatives(subsection, [...levels, section.permalink]);
+    });
+    section.permalink = `/${[...levels, section.permalink].join("/")}`;
+  }
+
+  for (const section of cleanedOutline.sections) {
+    setPermalinksToRelatives(section, []);
+  }
+
   console.log("\nCalculating final writing costs...\n");
 
   const pageWritingMessages = getPageWritingMessages(
+    cleanedOutline,
     cleanedOutline.sections,
-    [],
     wizardState.addDiagrams
   );
 
