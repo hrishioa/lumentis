@@ -136,6 +136,11 @@ export const allExclusions = folderTreeExclusions.concat(
   excludeExtensions.map((ex) => new RegExp(`.*${ex}$`))
 );
 
+
+const footerPromptString = "\n</NEW_FILE>\n";
+const joinString = "\n\n____________________\n\n";
+
+
 // This is using the Programming_Languages_Extensions.json from ppisarczyk: https://gist.github.com/ppisarczyk/43962d06686722d26d176fad46879d41
 // I considered transforming it into just a list of programming extensions,
 // but thought it might be more flexible fo use the whole thing in case we
@@ -170,7 +175,8 @@ export function checkFileIsReadable(filename: string) {
   return false;
 }
 
-export function recursivelyRemoveExcludedFilesAndAddTokenCount(
+
+function recursivelyRemoveExcludedFilesAndAddTokenCount(
   tree,
   user_selection: string[] | false = false
 ) {
@@ -225,7 +231,7 @@ export function recursivelyRemoveExcludedFilesAndAddTokenCount(
   return false; // This gets returned if it's a directory without children or the type is questionable
 }
 
-export function recursivelyFlattenFileTreeForCheckbox(
+function recursivelyFlattenFileTreeForCheckbox(
   fileTree: dirTree.DirectoryTree,
   levels = 0
 ) {
@@ -262,20 +268,51 @@ export function recursivelyFlattenFileTreeForCheckbox(
   return [];
 }
 
+// Wrap dirTree as a Promise
+export function getFileTree(filepath: string): Promise<dirTree.DirectoryTree> {
+  return new Promise((resolve, reject) => {
+    const tree = dirTree(filepath, {
+      exclude: allExclusions,
+      attributes: ["size", "type", "extension"]
+    });
+    return resolve(tree);
+  });
+}
+
+// Wrap recursivelyRemoveExcludedFilesAndAddTokenCount as a Promise
+export function removeExcludedFilesAndAddTokenCount(
+  tree: dirTree.DirectoryTree,
+  user_selection: string[] | false = false
+): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    recursivelyRemoveExcludedFilesAndAddTokenCount(tree, user_selection);
+    return resolve(true);
+  });
+}
+
+// Wrap recursivelyFlattenFileTreeForCheckbox as a Promise
+export function flattenFileTreeForCheckbox(
+  fileTree: dirTree.DirectoryTree,
+  levels = 0
+): Promise<{ name: string; value: string; checked: boolean }[]> {
+  return new Promise((resolve, reject) => {
+    return resolve(recursivelyFlattenFileTreeForCheckbox(fileTree, levels));
+  });
+}
+
+
 function getHeaderPromptString(filepath) {
   return `<NEW_FILE: ${filepath}>\n`
 }
-const footerPromptString = "\n</NEW_FILE>\n";
-const joinString = "\n\n____________________\n\n";
 
-export function getAdditionalPromptTokens(flat_selection: {name: string, value: string }[]) {
-  const promptString =  flat_selection
+export function getAdditionalPromptTokens(flat_selection: { name: string, value: string }[]) {
+  const promptString = flat_selection
     .filter((file) => !file.name.includes("📁"))
     .map((file) => {
       return getHeaderPromptString(file.value) + footerPromptString;
     })
     .join(joinString);
-    return countTokens(promptString);
+  return countTokens(promptString);
 }
 
 export function combineFilesToString(flat_selection: { name: string, value: string, checked: boolean }[]) {

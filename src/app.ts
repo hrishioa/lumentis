@@ -32,11 +32,12 @@ import {
   allExclusions,
   checkFileIsReadable,
   folderTokenTotal,
-  recursivelyFlattenFileTreeForCheckbox,
-  recursivelyRemoveExcludedFilesAndAddTokenCount,
+  flattenFileTreeForCheckbox,
+  removeExcludedFilesAndAddTokenCount,
   resetFolderTokenTotal,
   combineFilesToString,
-  getAdditionalPromptTokens
+  getAdditionalPromptTokens,
+  getFileTree
 } from "./folder-importing-utils";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
@@ -50,7 +51,7 @@ import {
   getTitleInferenceMessages
 } from "./prompts";
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
+import { createTimeoutPromise, isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -159,20 +160,34 @@ async function runWizard() {
 
       wizardState.loadedPrimarySource = dataFromFile;
     } else if (fs.lstatSync(parsed_filename).isDirectory()) {
-      const fileTree = dirTree(parsed_filename, {
-        exclude: allExclusions,
-        attributes: ["size", "type", "extension"]
-      });
+
+      // Time out if the file tree is too large
+      console.log("Awaiting file tree...")
+      // const fileTree: dirTree.DirectoryTree | false = await Promise.any([tP, getFileTree(parsed_filename)]);
+      const fileTree: dirTree.DirectoryTree | false = await getFileTree(parsed_filename);
+      console.log("File tree", typeof fileTree);
+      if (!fileTree) {
+        console.log("The file tree is too large to process in a reasonable time. Exiting.")
+        return; // Return if the timeout is reached
+      }
       resetFolderTokenTotal();
-      recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree);
-      if (!fileTree.children) {
-        console.log("No files found in directory. Try again.");
+      console.log("DEBUG: next promise await")
+      const completedTreeWork = await Promise.race([removeExcludedFilesAndAddTokenCount(fileTree), createTimeoutPromise(1)]);
+      console.log("DEBUG: completedTreeWork", completedTreeWork);
+      if (!completedTreeWork || !fileTree.children) {
+        console.log(completedTreeWork ? "No files found in directory. Try again." : "The file tree is too large to process in a reasonable time.");
         return;
       }
 
       let first_time = true;
       let selectedFiles: string[] = [];
-      let file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+      let file_choices: { name: string; value: string; checked: boolean }[] | "isfalse" = await Promise.race([flattenFileTreeForCheckbox(fileTree), createTimeoutPromise(1)]);
+
+      if (!file_choices || file_choices === "isfalse") {
+        console.log("The file tree is too large to process in a reasonable time. Exiting.")
+        return; // Return if the timeout is reached
+      }
+
       let promptTokens = getAdditionalPromptTokens(file_choices);
       while (first_time || folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
@@ -190,8 +205,8 @@ Note: Some files do not appear as we don't believe we can read them. `,
           choices: file_choices
         });
         resetFolderTokenTotal();
-        recursivelyRemoveExcludedFilesAndAddTokenCount(fileTree, selectedFiles);
-        file_choices = recursivelyFlattenFileTreeForCheckbox(fileTree);
+        await removeExcludedFilesAndAddTokenCount(fileTree, selectedFiles); // we assume that it'll work here if it worked with the larger folder earlier.
+        file_choices = await flattenFileTreeForCheckbox(fileTree);
         promptTokens = getAdditionalPromptTokens(file_choices);
       }
 
@@ -211,7 +226,7 @@ Note: Some files do not appear as we don't believe we can read them. `,
       wizardState.loadedPrimarySource = combineFilesToString(file_choices)
 
       console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
-        
+
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");
       return;
@@ -249,9 +264,8 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${
-        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
-      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      message: `Your content looks a little too large by about ${CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+        } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
@@ -540,13 +554,12 @@ Note: Some files do not appear as we don't believe we can read them. `,
   );
 
   const questionPermission = await confirm({
-    message: `Are you okay ${
-      wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
-      questionsMessages,
-      2048,
-      wizardState.smarterModel
-    ).toFixed(4)}): `,
+    message: `Are you okay ${wizardState.ambiguityExplained ? "re" : ""
+      }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+        questionsMessages,
+        2048,
+        wizardState.smarterModel
+      ).toFixed(4)}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -736,9 +749,8 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
         const flattened = [
           {
-            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
-              section.title
-            }`,
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${section.title
+              }`,
             value: levels.concat([section.permalink]).join("->"),
             checked: !section.disabled
           }
