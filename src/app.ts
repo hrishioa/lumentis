@@ -31,12 +31,12 @@ import {
 import {
   allExclusions,
   checkFileIsReadable,
-  flattenFileTreeForCheckbox,
-  removeExcludedFilesAndAddTokenCount,
   combineFilesToString,
+  flattenFileTreeForCheckbox,
   getAdditionalPromptTokens,
   getFileTree,
-  removeDeselectedItems
+  removeDeselectedItems,
+  removeExcludedFilesAndAddTokenCount
 } from "./folder-importing/utils";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
@@ -159,22 +159,30 @@ async function runWizard() {
 
       wizardState.loadedPrimarySource = dataFromFile;
     } else if (fs.lstatSync(parsed_filename).isDirectory()) {
-
       // Time out if the file tree is too large
-      let fileTree: dirTree.DirectoryTree | 'timeoutFailed' = await getFileTree(parsed_filename);
+      let fileTree: dirTree.DirectoryTree | "timeoutFailed" =
+        await getFileTree(parsed_filename);
       console.log("File tree", typeof fileTree);
-      if (!fileTree || fileTree === 'timeoutFailed') {
-        console.log("The file tree is too large to process in a reasonable time. Exiting.")
+      if (!fileTree || fileTree === "timeoutFailed") {
+        console.log(
+          "The file tree is too large to process in a reasonable time. Exiting."
+        );
         return; // Return if the timeout is reached
       }
 
-      let completedTreeWork: { result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree } | 'timeoutFailed' = await removeExcludedFilesAndAddTokenCount(fileTree)
+      let completedTreeWork:
+        | { result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree }
+        | "timeoutFailed" = await removeExcludedFilesAndAddTokenCount(fileTree);
 
-      if (!completedTreeWork || completedTreeWork === 'timeoutFailed' || !fileTree.children) {
+      if (
+        !completedTreeWork ||
+        completedTreeWork === "timeoutFailed" ||
+        !fileTree.children
+      ) {
         console.log(
-          completedTreeWork && completedTreeWork !== 'timeoutFailed' ?
-            "No files found in directory. Try again." :
-            "The file tree is too large to process in a reasonable time."
+          completedTreeWork && completedTreeWork !== "timeoutFailed"
+            ? "No files found in directory. Try again."
+            : "The file tree is too large to process in a reasonable time."
         );
         return;
       }
@@ -182,50 +190,72 @@ async function runWizard() {
       fileTree = completedTreeWork.tree;
       let first_time = true;
       let selectedFiles: string[] = [];
-      let file_choices: { name: string; value: string; checked: boolean }[] | "timeoutFailed" = await flattenFileTreeForCheckbox(fileTree);
+      let file_choices:
+        | { name: string; value: string; checked: boolean }[]
+        | "timeoutFailed" = await flattenFileTreeForCheckbox(fileTree);
 
       if (!file_choices || file_choices === "timeoutFailed") {
-        console.log("The file tree is too large to process in a reasonable time. Exiting.")
+        console.log(
+          "The file tree is too large to process in a reasonable time. Exiting."
+        );
         return; // Return if the timeout is reached
       }
 
       let promptTokens = getAdditionalPromptTokens(file_choices);
-      while (first_time || completedTreeWork.tokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+      while (
+        first_time ||
+        completedTreeWork.tokenTotal + promptTokens >
+          CLAUDE_PRIMARYSOURCE_BUDGET
+      ) {
         if (!first_time) {
-          console.log("You've selected too many tokens. Please deselect files to exclude.");
+          console.log(
+            "You've selected too many tokens. Please deselect files to exclude."
+          );
         }
         first_time = false;
         selectedFiles = await checkbox({
           pageSize: 8,
           loop: false,
           message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
-Your current file token count is ${completedTreeWork.tokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(completedTreeWork.tokenTotal + promptTokens).toLocaleString()}.
+Your current file token count is ${completedTreeWork.tokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(
+            completedTreeWork.tokenTotal + promptTokens
+          ).toLocaleString()}.
 Please deselect files to exclude.
 Note: If you deselect a folder, all files within it will be excluded.
 Note: Some files do not appear as we don't believe we can read them. `,
           choices: file_choices
         });
 
-        completedTreeWork = await removeDeselectedItems(fileTree, selectedFiles);
-        if (!completedTreeWork || completedTreeWork === 'timeoutFailed' || !fileTree.children) {
+        completedTreeWork = await removeDeselectedItems(
+          fileTree,
+          selectedFiles
+        );
+        if (
+          !completedTreeWork ||
+          completedTreeWork === "timeoutFailed" ||
+          !fileTree.children
+        ) {
           console.log(
-            completedTreeWork && completedTreeWork !== 'timeoutFailed' ?
-              "No files found in directory. Try again." :
-              "The file tree is too large to process in a reasonable time."
+            completedTreeWork && completedTreeWork !== "timeoutFailed"
+              ? "No files found in directory. Try again."
+              : "The file tree is too large to process in a reasonable time."
           );
           return;
         }
         file_choices = await flattenFileTreeForCheckbox(fileTree);
         if (!file_choices || file_choices === "timeoutFailed") {
-          console.log("The file tree is too large to process in a reasonable time. Exiting.")
+          console.log(
+            "The file tree is too large to process in a reasonable time. Exiting."
+          );
           return; // Return if the timeout is reached
         }
         promptTokens = getAdditionalPromptTokens(file_choices);
       }
 
       const confirmFiles = await confirm({
-        message:
-          `${file_choices.map(val => val.name).join('\n')}\nHere is your list of files. Confirm?`,
+        message: `${file_choices
+          .map((val) => val.name)
+          .join("\n")}\nHere is your list of files. Confirm?`,
         default: wizardState.streamToConsole || false,
         transformer: (answer) => (answer ? "👍" : "👎")
       });
@@ -236,10 +266,12 @@ Note: Some files do not appear as we don't believe we can read them. `,
       }
 
       // TODO: Is this the  best way to handle this?
-      wizardState.loadedPrimarySource = combineFilesToString(file_choices)
+      wizardState.loadedPrimarySource = combineFilesToString(file_choices);
 
-      console.log("\x1b[31mYour source has a token count of:\x1b[0m", countTokens(wizardState.loadedPrimarySource));
-
+      console.log(
+        "\x1b[31mYour source has a token count of:\x1b[0m",
+        countTokens(wizardState.loadedPrimarySource)
+      );
     } else {
       console.log("Doesn't seem to be a file or a directory. Exiting.");
       return;
@@ -277,8 +309,9 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
-        } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      message: `Your content looks a little too large by about ${
+        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
@@ -567,12 +600,13 @@ Note: Some files do not appear as we don't believe we can read them. `,
   );
 
   const questionPermission = await confirm({
-    message: `Are you okay ${wizardState.ambiguityExplained ? "re" : ""
-      }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
-        questionsMessages,
-        2048,
-        wizardState.smarterModel
-      ).toFixed(4)}): `,
+    message: `Are you okay ${
+      wizardState.ambiguityExplained ? "re" : ""
+    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+      questionsMessages,
+      2048,
+      wizardState.smarterModel
+    ).toFixed(4)}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -762,8 +796,9 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
         const flattened = [
           {
-            name: `${"-".repeat(levels.length + 1)} ${counter}. ${section.title
-              }`,
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
+              section.title
+            }`,
             value: levels.concat([section.permalink]).join("->"),
             checked: !section.disabled
           }
