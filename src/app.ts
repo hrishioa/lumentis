@@ -31,14 +31,13 @@ import {
 import {
   allExclusions,
   checkFileIsReadable,
-  folderTokenTotal,
   flattenFileTreeForCheckbox,
   removeExcludedFilesAndAddTokenCount,
-  resetFolderTokenTotal,
   combineFilesToString,
   getAdditionalPromptTokens,
-  getFileTree
-} from "./folder-importing-utils";
+  getFileTree,
+  removeDeselectedItems
+} from "./folder-importing/utils";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
   getAudienceInferenceMessages,
@@ -51,7 +50,7 @@ import {
   getTitleInferenceMessages
 } from "./prompts";
 import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
-import { createTimeoutPromise, isCommandAvailable, parsePlatformIndependentPath } from "./utils";
+import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
@@ -162,34 +161,36 @@ async function runWizard() {
     } else if (fs.lstatSync(parsed_filename).isDirectory()) {
 
       // Time out if the file tree is too large
-      console.log("Awaiting file tree...")
-      // const fileTree: dirTree.DirectoryTree | false = await Promise.any([tP, getFileTree(parsed_filename)]);
-      const fileTree: dirTree.DirectoryTree | false = await getFileTree(parsed_filename);
+      let fileTree: dirTree.DirectoryTree | 'timeoutFailed' = await getFileTree(parsed_filename);
       console.log("File tree", typeof fileTree);
-      if (!fileTree) {
+      if (!fileTree || fileTree === 'timeoutFailed') {
         console.log("The file tree is too large to process in a reasonable time. Exiting.")
         return; // Return if the timeout is reached
       }
-      resetFolderTokenTotal();
-      console.log("DEBUG: next promise await")
-      const completedTreeWork = await Promise.race([removeExcludedFilesAndAddTokenCount(fileTree), createTimeoutPromise(1)]);
-      console.log("DEBUG: completedTreeWork", completedTreeWork);
-      if (!completedTreeWork || !fileTree.children) {
-        console.log(completedTreeWork ? "No files found in directory. Try again." : "The file tree is too large to process in a reasonable time.");
+
+      let completedTreeWork: { result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree } | 'timeoutFailed' = await removeExcludedFilesAndAddTokenCount(fileTree)
+
+      if (!completedTreeWork || completedTreeWork === 'timeoutFailed' || !fileTree.children) {
+        console.log(
+          completedTreeWork && completedTreeWork !== 'timeoutFailed' ?
+            "No files found in directory. Try again." :
+            "The file tree is too large to process in a reasonable time."
+        );
         return;
       }
 
+      fileTree = completedTreeWork.tree;
       let first_time = true;
       let selectedFiles: string[] = [];
-      let file_choices: { name: string; value: string; checked: boolean }[] | "isfalse" = await Promise.race([flattenFileTreeForCheckbox(fileTree), createTimeoutPromise(1)]);
+      let file_choices: { name: string; value: string; checked: boolean }[] | "timeoutFailed" = await flattenFileTreeForCheckbox(fileTree);
 
-      if (!file_choices || file_choices === "isfalse") {
+      if (!file_choices || file_choices === "timeoutFailed") {
         console.log("The file tree is too large to process in a reasonable time. Exiting.")
         return; // Return if the timeout is reached
       }
 
       let promptTokens = getAdditionalPromptTokens(file_choices);
-      while (first_time || folderTokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+      while (first_time || completedTreeWork.tokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
         if (!first_time) {
           console.log("You've selected too many tokens. Please deselect files to exclude.");
         }
@@ -198,15 +199,27 @@ async function runWizard() {
           pageSize: 8,
           loop: false,
           message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
-Your current file token count is ${folderTokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(folderTokenTotal + promptTokens).toLocaleString()}.
+Your current file token count is ${completedTreeWork.tokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(completedTreeWork.tokenTotal + promptTokens).toLocaleString()}.
 Please deselect files to exclude.
 Note: If you deselect a folder, all files within it will be excluded.
 Note: Some files do not appear as we don't believe we can read them. `,
           choices: file_choices
         });
-        resetFolderTokenTotal();
-        await removeExcludedFilesAndAddTokenCount(fileTree, selectedFiles); // we assume that it'll work here if it worked with the larger folder earlier.
+
+        completedTreeWork = await removeDeselectedItems(fileTree, selectedFiles);
+        if (!completedTreeWork || completedTreeWork === 'timeoutFailed' || !fileTree.children) {
+          console.log(
+            completedTreeWork && completedTreeWork !== 'timeoutFailed' ?
+              "No files found in directory. Try again." :
+              "The file tree is too large to process in a reasonable time."
+          );
+          return;
+        }
         file_choices = await flattenFileTreeForCheckbox(fileTree);
+        if (!file_choices || file_choices === "timeoutFailed") {
+          console.log("The file tree is too large to process in a reasonable time. Exiting.")
+          return; // Return if the timeout is reached
+        }
         promptTokens = getAdditionalPromptTokens(file_choices);
       }
 

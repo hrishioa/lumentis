@@ -4,13 +4,11 @@ import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
 import dirTree from "directory-tree";
 import mime from "mime-types";
+import { parsePlatformIndependentPath } from "../utils";
+import { Worker } from 'node:worker_threads';
+import type { CheckboxInput } from "src/types";
+import exp from "node:constants";
 
-import { parsePlatformIndependentPath } from "./utils";
-
-export let folderTokenTotal = 0;
-export function resetFolderTokenTotal() {
-  folderTokenTotal = 0;
-}
 
 // I did a bunch of scrolling through mime types to come up with this list (https://www.iana.org/assignments/media-types/media-types.xhtml)
 // However there's still possibly a bunch missing.
@@ -25,6 +23,7 @@ const programming_extensions = JSON.parse(
   fs.readFileSync(
     path.join(
       __dirname,
+      "..",
       "..",
       "assets",
       "programming_language_extensions.json"
@@ -175,132 +174,6 @@ export function checkFileIsReadable(filename: string) {
   return false;
 }
 
-
-function recursivelyRemoveExcludedFilesAndAddTokenCount(
-  tree,
-  user_selection: string[] | false = false
-) {
-  tree.size = 0;
-  if (tree.children && tree.children.length > 0) {
-    tree.children = tree.children
-      .filter((child) => {
-        if (child.type === "file") {
-          if (user_selection) {
-            return user_selection.includes(child.path);
-          }
-          return checkFileIsReadable(child.name);
-        } else {
-          if (user_selection && !user_selection.includes(child.path)) {
-            return false;
-          }
-          recursivelyRemoveExcludedFilesAndAddTokenCount(child, user_selection);
-          return child.children.length > 0;
-        }
-      })
-      .sort((a, b) =>
-        a.type === "file" && b.type !== "file"
-          ? -1
-          : a.type !== "file" && b.type === "file"
-            ? 1
-            : 0
-      );
-    for (const child of tree.children) {
-      if (child.type === "file") {
-        let fileTokens = child.size;
-        if (!user_selection) {
-          fileTokens = countTokens(
-            fs.readFileSync(parsePlatformIndependentPath(child.path), "utf-8")
-          ); // This gets expensive with large folders. User issue?
-        }
-        folderTokenTotal += fileTokens;
-        child.size = fileTokens;
-      }
-    }
-  }
-  if (tree.type === "directory" && tree.children.length > 0) {
-    tree.size = tree.children.reduce((acc, child) => acc + child.size, 0);
-  }
-  if (tree.type === "file") {
-    return checkFileIsReadable(tree.name);
-  }
-  if (tree.type === "directory" && tree.children.length === 0) {
-    tree.size = tree.children.reduce((acc, child) => acc + child.size, 0);
-    return false;
-  }
-
-  return false; // This gets returned if it's a directory without children or the type is questionable
-}
-
-function recursivelyFlattenFileTreeForCheckbox(
-  fileTree: dirTree.DirectoryTree,
-  levels = 0
-) {
-  if (fileTree.type === "file") {
-    return [
-      {
-        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}>${fileTree.name
-          }`,
-        value: fileTree.path,
-        checked: true
-      }
-    ];
-  }
-
-  if (fileTree.type === "directory") {
-    let file_choices = [
-      {
-        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(
-          levels
-        )}📁${fileTree.name}`,
-        value: fileTree.path,
-        checked: true
-      }
-    ];
-    if (fileTree.children && fileTree.children.length > 0) {
-      file_choices = file_choices.concat(
-        fileTree.children.flatMap((child) => {
-          return recursivelyFlattenFileTreeForCheckbox(child, levels + 1);
-        })
-      );
-    }
-    return file_choices;
-  }
-  return [];
-}
-
-// Wrap dirTree as a Promise
-export function getFileTree(filepath: string): Promise<dirTree.DirectoryTree> {
-  return new Promise((resolve, reject) => {
-    const tree = dirTree(filepath, {
-      exclude: allExclusions,
-      attributes: ["size", "type", "extension"]
-    });
-    return resolve(tree);
-  });
-}
-
-// Wrap recursivelyRemoveExcludedFilesAndAddTokenCount as a Promise
-export function removeExcludedFilesAndAddTokenCount(
-  tree: dirTree.DirectoryTree,
-  user_selection: string[] | false = false
-): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    recursivelyRemoveExcludedFilesAndAddTokenCount(tree, user_selection);
-    return resolve(true);
-  });
-}
-
-// Wrap recursivelyFlattenFileTreeForCheckbox as a Promise
-export function flattenFileTreeForCheckbox(
-  fileTree: dirTree.DirectoryTree,
-  levels = 0
-): Promise<{ name: string; value: string; checked: boolean }[]> {
-  return new Promise((resolve, reject) => {
-    return resolve(recursivelyFlattenFileTreeForCheckbox(fileTree, levels));
-  });
-}
-
-
 function getHeaderPromptString(filepath) {
   return `<NEW_FILE: ${filepath}>\n`
 }
@@ -327,4 +200,80 @@ export function combineFilesToString(flat_selection: { name: string, value: stri
       return `${header}${content}${footerPromptString}`;
     })
     .join(joinString);
+}
+
+function createTimeoutPromise<T>(time = 5000, value = 'timeoutFailed') {
+  return new Promise<string>((resolve, reject) => {
+    setTimeout(() => {
+      return resolve(value);
+    }, time);
+  });
+}
+
+function runWorker(workerPath: string,
+  data: string | dirTree.DirectoryTree |
+  { tree: dirTree.DirectoryTree, user_selection: string[] }
+) {
+  const worker = new Worker(workerPath);
+  const promise = new Promise((resolve, reject) => {
+    worker.postMessage(data);
+    worker.on('message', resolve);
+    worker.on('error', reject);
+    worker.on('exit', (code) => {
+      if (code !== 0 && code !== 1) {  // Code 1 is used for manual termination
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      }
+    });
+  });
+  return { worker, promise };
+}
+
+export async function getFileTree(filepath: string): Promise<dirTree.DirectoryTree | 'timeoutFailed'> {
+  const { worker, promise } = runWorker(path.join(__dirname, 'worker-dirtree.js'), filepath);
+  const timeout = createTimeoutPromise(5000);
+  const result = await Promise.race([promise, timeout]);
+  worker.terminate();
+  if (result === 'timeoutFailed') {
+    return 'timeoutFailed';
+  } else {
+    return result as dirTree.DirectoryTree;
+  }
+}
+
+export async function removeExcludedFilesAndAddTokenCount(tree: dirTree.DirectoryTree): Promise<{ result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree } | 'timeoutFailed'> {
+  const { worker, promise } = runWorker(path.join(__dirname, 'worker-clean-dirtree.js'), tree);
+  const timeout = createTimeoutPromise(3000);
+  const result = await Promise.race([promise, timeout]);
+  worker.terminate();
+  if (result === 'timeoutFailed') {
+    return 'timeoutFailed';
+  } else {
+    return result as { result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree };
+  }
+}
+
+export async function flattenFileTreeForCheckbox(fileTree: dirTree.DirectoryTree): Promise<CheckboxInput[] | 'timeoutFailed'> {
+  const { worker, promise } = runWorker(path.join(__dirname, 'worker-flatten-tree-for-checkbox.js'), fileTree);
+  const timeout = createTimeoutPromise(2000);
+  const result = await Promise.race([promise, timeout]);
+  worker.terminate();
+  if (result === 'timeoutFailed') {
+    return 'timeoutFailed';
+  } else {
+    return result as CheckboxInput[];
+  }
+}
+
+export async function removeDeselectedItems(
+  tree: dirTree.DirectoryTree, user_selection: string[]
+): Promise<{ result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree } | 'timeoutFailed'> {
+  const { worker, promise } = runWorker(path.join(__dirname, 'worker-remove-deselected.js'), { tree, user_selection });
+  const timeout = createTimeoutPromise(2000);
+  const result = await Promise.race([promise, timeout]);
+  worker.terminate();
+  if (result === 'timeoutFailed') {
+    return 'timeoutFailed';
+  } else {
+    return result as { result: boolean, tokenTotal: number, tree: dirTree.DirectoryTree };
+  }
 }

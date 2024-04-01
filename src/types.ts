@@ -21,6 +21,12 @@ export type ReadyToGeneratePage = {
   messages: MessageParam[];
 };
 
+export type CheckboxInput = {
+  name: string;
+  value: string;
+  checked: boolean;
+};
+
 export type WizardState = Partial<{
   gotDirectoryPermission: boolean;
   smarterModel: string;

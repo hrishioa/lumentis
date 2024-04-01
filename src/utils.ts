@@ -3,25 +3,6 @@ import * as path from "node:path";
 import * as spawn from "cross-spawn";
 
 
-export function createTimeoutPromise(timeoutDuration = 5000): Promise<"isfalse"> {
-  console.log("createTimeoutPromise")
-  return new Promise<"isfalse">((resolve) => {
-    setTimeout(() => {
-      console.log("createTimeoutPromise resolve")
-      return resolve("isfalse");
-    }, timeoutDuration);
-  });
-}
-
-export function createTimeoutPromiseNew<T>(time, value: T) {
-  return new Promise<T>((resolve, reject) => {
-    setTimeout(() => {
-      return resolve(value);
-    }, time);
-  });
-}
-
-
 export function parsePlatformIndependentPath(iPath: string): string {
   if (os.platform() === "win32") {
     return path.normalize(iPath.replace(/^["'](.*)["']$/, "$1").trim());
