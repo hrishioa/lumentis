@@ -159,10 +159,11 @@ async function runWizard() {
 
       wizardState.loadedPrimarySource = dataFromFile;
     } else if (fs.lstatSync(parsed_filename).isDirectory()) {
-      // Time out if the file tree is too large
+
+      // ________________________________________FOLDER MANAGEMENT SECTION____________________________________
       let fileTree: dirTree.DirectoryTree | "timeoutFailed" =
         await getFileTree(parsed_filename);
-      console.log("File tree", typeof fileTree);
+
       if (!fileTree || fileTree === "timeoutFailed") {
         console.log(
           "The file tree is too large to process in a reasonable time. Exiting."
@@ -202,10 +203,12 @@ async function runWizard() {
       }
 
       let promptTokens = getAdditionalPromptTokens(file_choices);
+
+      // Loop until the files selected are within the token limit
       while (
         first_time ||
         completedTreeWork.tokenTotal + promptTokens >
-          CLAUDE_PRIMARYSOURCE_BUDGET
+        CLAUDE_PRIMARYSOURCE_BUDGET
       ) {
         if (!first_time) {
           console.log(
@@ -213,18 +216,25 @@ async function runWizard() {
           );
         }
         first_time = false;
+
+        console.log("before checkbox await")
+
         selectedFiles = await checkbox({
           pageSize: 8,
           loop: false,
           message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
 Your current file token count is ${completedTreeWork.tokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(
-            completedTreeWork.tokenTotal + promptTokens
-          ).toLocaleString()}.
+              completedTreeWork.tokenTotal + promptTokens
+            ).toLocaleString()}.
 Please deselect files to exclude.
 Note: If you deselect a folder, all files within it will be excluded.
-Note: Some files do not appear as we don't believe we can read them. `,
-          choices: file_choices
-        });
+Note: Some files do not appear as we don't believe we can read them.`,
+          choices: file_choices,
+          theme: { style: { renderSelectedChoices: () => { } } }
+        }
+        );
+
+        console.log("after checkbox await")
 
         completedTreeWork = await removeDeselectedItems(
           fileTree,
@@ -242,6 +252,7 @@ Note: Some files do not appear as we don't believe we can read them. `,
           );
           return;
         }
+        fileTree = completedTreeWork.tree;
         file_choices = await flattenFileTreeForCheckbox(fileTree);
         if (!file_choices || file_choices === "timeoutFailed") {
           console.log(
@@ -309,9 +320,8 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${
-        CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
-      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      message: `Your content looks a little too large by about ${CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+        } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
@@ -600,13 +610,12 @@ Note: Some files do not appear as we don't believe we can read them. `,
   );
 
   const questionPermission = await confirm({
-    message: `Are you okay ${
-      wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
-      questionsMessages,
-      2048,
-      wizardState.smarterModel
-    ).toFixed(4)}): `,
+    message: `Are you okay ${wizardState.ambiguityExplained ? "re" : ""
+      }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+        questionsMessages,
+        2048,
+        wizardState.smarterModel
+      ).toFixed(4)}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -796,9 +805,8 @@ Note: Some files do not appear as we don't believe we can read them. `,
 
         const flattened = [
           {
-            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
-              section.title
-            }`,
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${section.title
+              }`,
             value: levels.concat([section.permalink]).join("->"),
             checked: !section.disabled
           }
