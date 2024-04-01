@@ -5,16 +5,11 @@ import type { CheckboxInput } from "src/types";
 
 const { parentPort } = require("node:worker_threads");
 
-function recursivelyFlattenFileTreeForCheckbox(
-  fileTree: dirTree.DirectoryTree,
-  levels = 0
-): CheckboxInput[] {
+function recursivelyFlattenFileTreeForCheckbox(fileTree: dirTree.DirectoryTree, levels = 0): CheckboxInput[] {
   if (fileTree.type === "file") {
     return [
       {
-        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}>${
-          fileTree.name
-        }`,
+        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}>${fileTree.name}`,
         value: fileTree.path,
         checked: true
       }
@@ -24,9 +19,7 @@ function recursivelyFlattenFileTreeForCheckbox(
   if (fileTree.type === "directory") {
     let file_choices = [
       {
-        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(
-          levels
-        )}📁${fileTree.name}`,
+        name: `${String(fileTree.size).padEnd(10, " ")}${"--".repeat(levels)}📁${fileTree.name}`,
         value: fileTree.path,
         checked: true
       }

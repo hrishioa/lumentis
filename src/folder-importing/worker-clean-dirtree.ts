@@ -8,47 +8,31 @@ const { parentPort } = require("node:worker_threads");
 
 let folderTokenTotal = 0;
 
-function recursivelyRemoveExcludedFilesAndAddTokenCount(
-  tree: dirTree.DirectoryTree
-) {
+function recursivelyRemoveExcludedFilesAndAddTokenCount(tree: dirTree.DirectoryTree) {
   tree.size = 0;
   if (tree.children && tree.children.length > 0) {
     tree.children = tree.children
       .filter((child) => {
         if (child.type === "file") {
           return checkFileIsReadable(child.name);
-        } else if (
-          child.type === "directory" &&
-          child.children &&
-          child.children.length > 0
-        ) {
+        } else if (child.type === "directory" && child.children && child.children.length > 0) {
           recursivelyRemoveExcludedFilesAndAddTokenCount(child);
           return child.children.length > 0;
         } else {
           return false;
         }
       })
-      .sort((a, b) =>
-        a.type === "file" && b.type !== "file"
-          ? -1
-          : a.type !== "file" && b.type === "file"
-            ? 1
-            : 0
-      );
+      .sort((a, b) => (a.type === "file" && b.type !== "file" ? -1 : a.type !== "file" && b.type === "file" ? 1 : 0));
     for (const child of tree.children) {
       if (child.type === "file") {
-        const fileTokens = countTokens(
-          fs.readFileSync(parsePlatformIndependentPath(child.path), "utf-8")
-        ); // This gets expensive with large folders. User issue?
+        const fileTokens = countTokens(fs.readFileSync(parsePlatformIndependentPath(child.path), "utf-8")); // This gets expensive with large folders. User issue?
         folderTokenTotal += fileTokens;
         child.size = fileTokens;
       }
     }
   }
   if (tree.type === "file") {
-    console.log(
-      "Should not be here: recursivelyRemoveExcludedFilesAndAddTokenCount called on a file"
-    );
+    console.log("Should not be here: recursivelyRemoveExcludedFilesAndAddTokenCount called on a file");
     return checkFileIsReadable(tree.name);
   } else if (tree.type === "directory" && tree.children) {
     if (tree.children.length > 0) {

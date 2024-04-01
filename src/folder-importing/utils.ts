@@ -21,20 +21,9 @@ const readableMimeTypes = ["text", "message"];
 const readableApplicationSubtypes = ["json", "xml", "yaml", "rtf", "rtx"];
 // TODO: Does the below require `parsePlatformIndependentPath`?
 const programming_extensions = JSON.parse(
-  fs.readFileSync(
-    path.join(
-      __dirname,
-      "..",
-      "..",
-      "assets",
-      "programming_language_extensions.json"
-    ),
-    "utf-8"
-  )
+  fs.readFileSync(path.join(__dirname, "..", "..", "assets", "programming_language_extensions.json"), "utf-8")
 );
-const allowed_extensions = programming_extensions
-  .filter((language) => language.type === "programming")
-  .flatMap((language) => language.extensions);
+const allowed_extensions = programming_extensions.filter((language) => language.type === "programming").flatMap((language) => language.extensions);
 
 // Extensions and paths to exclude from the folder tree.
 // This is a list of extensions that are generally not readable by AI models.
@@ -132,9 +121,7 @@ const folderTreeExclusions = [
   /^.*\/\.idea$/,
   /^.*\/\.DS_Store$/
 ];
-export const allExclusions = folderTreeExclusions.concat(
-  excludeExtensions.map((ex) => new RegExp(`.*${ex}$`))
-);
+export const allExclusions = folderTreeExclusions.concat(excludeExtensions.map((ex) => new RegExp(`.*${ex}$`)));
 
 // ___________________________________CHECK FILE READABILITY___________________________________
 // Recommend to the restrictions using the fields above
@@ -164,10 +151,7 @@ export function checkFileIsReadable(filename: string) {
 
   if (readableMimeTypes.includes(type)) {
     return true;
-  } else if (
-    type === "application" &&
-    readableApplicationSubtypes.some((sub) => subtype.includes(sub))
-  ) {
+  } else if (type === "application" && readableApplicationSubtypes.some((sub) => subtype.includes(sub))) {
     return true;
   }
   return false;
@@ -183,9 +167,7 @@ function getHeaderPromptString(filepath) {
   return `<NEW_FILE: ${filepath}>\n`;
 }
 
-export function getAdditionalPromptTokens(
-  flat_selection: { name: string; value: string }[]
-) {
+export function getAdditionalPromptTokens(flat_selection: { name: string; value: string }[]) {
   const promptString = flat_selection
     .filter((file) => !file.name.includes("📁"))
     .map((file) => {
@@ -195,17 +177,12 @@ export function getAdditionalPromptTokens(
   return countTokens(promptString);
 }
 
-export function combineFilesToString(
-  flat_selection: { name: string; value: string; checked: boolean }[]
-) {
+export function combineFilesToString(flat_selection: { name: string; value: string; checked: boolean }[]) {
   return flat_selection
     .filter((file) => !file.name.includes("📁")) // Faster but more fragile than 'fs.lstatSync(file.value).isFile()'
     .map((file) => {
       const header = getHeaderPromptString(file.value);
-      const content = fs.readFileSync(
-        parsePlatformIndependentPath(file.value),
-        "utf-8"
-      );
+      const content = fs.readFileSync(parsePlatformIndependentPath(file.value), "utf-8");
       return `${header}${content}${footerPromptString}`;
     })
     .join(joinString);
@@ -223,13 +200,7 @@ function createTimeoutPromise<T>(time = 5000, value = "timeoutFailed") {
   });
 }
 
-function runWorker(
-  workerPath: string,
-  data:
-    | string
-    | dirTree.DirectoryTree
-    | { tree: dirTree.DirectoryTree; user_selection: string[] }
-) {
+function runWorker(workerPath: string, data: string | dirTree.DirectoryTree | { tree: dirTree.DirectoryTree; user_selection: string[] }) {
   const worker = new Worker(workerPath);
   const promise = new Promise((resolve, reject) => {
     worker.postMessage(data);
@@ -245,13 +216,8 @@ function runWorker(
   return { worker, promise };
 }
 
-export async function getFileTree(
-  filepath: string
-): Promise<dirTree.DirectoryTree | "timeoutFailed"> {
-  const { worker, promise } = runWorker(
-    path.join(__dirname, "worker-dirtree.js"),
-    filepath
-  );
+export async function getFileTree(filepath: string): Promise<dirTree.DirectoryTree | "timeoutFailed"> {
+  const { worker, promise } = runWorker(path.join(__dirname, "worker-dirtree.js"), filepath);
   const timeout = createTimeoutPromise(5000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -264,14 +230,8 @@ export async function getFileTree(
 
 export async function removeExcludedFilesAndAddTokenCount(
   tree: dirTree.DirectoryTree
-): Promise<
-  | { result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree }
-  | "timeoutFailed"
-> {
-  const { worker, promise } = runWorker(
-    path.join(__dirname, "worker-clean-dirtree.js"),
-    tree
-  );
+): Promise<{ result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree } | "timeoutFailed"> {
+  const { worker, promise } = runWorker(path.join(__dirname, "worker-clean-dirtree.js"), tree);
   const timeout = createTimeoutPromise(3000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -286,13 +246,8 @@ export async function removeExcludedFilesAndAddTokenCount(
   }
 }
 
-export async function flattenFileTreeForCheckbox(
-  fileTree: dirTree.DirectoryTree
-): Promise<CheckboxInput[] | "timeoutFailed"> {
-  const { worker, promise } = runWorker(
-    path.join(__dirname, "worker-flatten-tree-for-checkbox.js"),
-    fileTree
-  );
+export async function flattenFileTreeForCheckbox(fileTree: dirTree.DirectoryTree): Promise<CheckboxInput[] | "timeoutFailed"> {
+  const { worker, promise } = runWorker(path.join(__dirname, "worker-flatten-tree-for-checkbox.js"), fileTree);
   const timeout = createTimeoutPromise(2000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -306,14 +261,8 @@ export async function flattenFileTreeForCheckbox(
 export async function removeDeselectedItems(
   tree: dirTree.DirectoryTree,
   user_selection: string[]
-): Promise<
-  | { result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree }
-  | "timeoutFailed"
-> {
-  const { worker, promise } = runWorker(
-    path.join(__dirname, "worker-remove-deselected.js"),
-    { tree, user_selection }
-  );
+): Promise<{ result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree } | "timeoutFailed"> {
+  const { worker, promise } = runWorker(path.join(__dirname, "worker-remove-deselected.js"), { tree, user_selection });
   const timeout = createTimeoutPromise(2000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();

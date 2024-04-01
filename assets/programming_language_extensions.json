@@ -191,23 +191,7 @@
   {
     "name": "C++",
     "type": "programming",
-    "extensions": [
-      ".cpp",
-      ".c++",
-      ".cc",
-      ".cp",
-      ".cxx",
-      ".h",
-      ".h++",
-      ".hh",
-      ".hpp",
-      ".hxx",
-      ".inc",
-      ".inl",
-      ".ipp",
-      ".tcc",
-      ".tpp"
-    ]
+    "extensions": [".cpp", ".c++", ".cc", ".cp", ".cxx", ".h", ".h++", ".hh", ".hpp", ".hxx", ".inc", ".inl", ".ipp", ".tcc", ".tpp"]
   },
   {
     "name": "C-ObjDump",
@@ -297,17 +281,7 @@
   {
     "name": "Clojure",
     "type": "programming",
-    "extensions": [
-      ".clj",
-      ".boot",
-      ".cl2",
-      ".cljc",
-      ".cljs",
-      ".cljs.hl",
-      ".cljscm",
-      ".cljx",
-      ".hic"
-    ]
+    "extensions": [".clj", ".boot", ".cl2", ".cljc", ".cljs", ".cljs.hl", ".cljscm", ".cljx", ".hic"]
   },
   {
     "name": "CoffeeScript",
@@ -327,16 +301,7 @@
   {
     "name": "Common Lisp",
     "type": "programming",
-    "extensions": [
-      ".lisp",
-      ".asd",
-      ".cl",
-      ".l",
-      ".lsp",
-      ".ny",
-      ".podsl",
-      ".sexp"
-    ]
+    "extensions": [".lisp", ".asd", ".cl", ".l", ".lsp", ".ny", ".podsl", ".sexp"]
   },
   {
     "name": "Component Pascal",
@@ -356,13 +321,7 @@
   {
     "name": "Cpp-ObjDump",
     "type": "data",
-    "extensions": [
-      ".cppobjdump",
-      ".c++-objdump",
-      ".c++objdump",
-      ".cpp-objdump",
-      ".cxx-objdump"
-    ]
+    "extensions": [".cppobjdump", ".c++-objdump", ".c++objdump", ".cpp-objdump", ".cxx-objdump"]
   },
   {
     "name": "Creole",
@@ -1160,17 +1119,7 @@
   {
     "name": "Mathematica",
     "type": "programming",
-    "extensions": [
-      ".mathematica",
-      ".cdf",
-      ".m",
-      ".ma",
-      ".mt",
-      ".nb",
-      ".nbp",
-      ".wl",
-      ".wlt"
-    ]
+    "extensions": [".mathematica", ".cdf", ".m", ".ma", ".mt", ".nb", ".nbp", ".wl", ".wlt"]
   },
   {
     "name": "Matlab",
@@ -1404,18 +1353,7 @@
   {
     "name": "PHP",
     "type": "programming",
-    "extensions": [
-      ".php",
-      ".aw",
-      ".ctp",
-      ".fcgi",
-      ".inc",
-      ".php3",
-      ".php4",
-      ".php5",
-      ".phps",
-      ".phpt"
-    ]
+    "extensions": [".php", ".aw", ".ctp", ".fcgi", ".inc", ".php3", ".php4", ".php5", ".phps", ".phpt"]
   },
   {
     "name": "PLSQL",
@@ -1465,36 +1403,12 @@
   {
     "name": "Perl",
     "type": "programming",
-    "extensions": [
-      ".pl",
-      ".al",
-      ".cgi",
-      ".fcgi",
-      ".perl",
-      ".ph",
-      ".plx",
-      ".pm",
-      ".pod",
-      ".psgi",
-      ".t"
-    ]
+    "extensions": [".pl", ".al", ".cgi", ".fcgi", ".perl", ".ph", ".plx", ".pm", ".pod", ".psgi", ".t"]
   },
   {
     "name": "Perl6",
     "type": "programming",
-    "extensions": [
-      ".6pl",
-      ".6pm",
-      ".nqp",
-      ".p6",
-      ".p6l",
-      ".p6m",
-      ".pl",
-      ".pl6",
-      ".pm",
-      ".pm6",
-      ".t"
-    ]
+    "extensions": [".6pl", ".6pm", ".nqp", ".p6", ".p6l", ".p6m", ".pl", ".pl6", ".pm", ".pm6", ".t"]
   },
   {
     "name": "Pickle",
@@ -1589,22 +1503,7 @@
   {
     "name": "Python",
     "type": "programming",
-    "extensions": [
-      ".py",
-      ".bzl",
-      ".cgi",
-      ".fcgi",
-      ".gyp",
-      ".lmi",
-      ".pyde",
-      ".pyp",
-      ".pyt",
-      ".pyw",
-      ".rpy",
-      ".tac",
-      ".wsgi",
-      ".xpy"
-    ]
+    "extensions": [".py", ".bzl", ".cgi", ".fcgi", ".gyp", ".lmi", ".pyde", ".pyp", ".pyt", ".pyw", ".rpy", ".tac", ".wsgi", ".xpy"]
   },
   {
     "name": "Python traceback",
@@ -1639,14 +1538,7 @@
   {
     "name": "REALbasic",
     "type": "programming",
-    "extensions": [
-      ".rbbas",
-      ".rbfrm",
-      ".rbmnu",
-      ".rbres",
-      ".rbtbar",
-      ".rbuistate"
-    ]
+    "extensions": [".rbbas", ".rbfrm", ".rbmnu", ".rbres", ".rbtbar", ".rbuistate"]
   },
   {
     "name": "RHTML",
@@ -1766,16 +1658,7 @@
   {
     "name": "SQL",
     "type": "data",
-    "extensions": [
-      ".sql",
-      ".cql",
-      ".ddl",
-      ".inc",
-      ".prc",
-      ".tab",
-      ".udf",
-      ".viw"
-    ]
+    "extensions": [".sql", ".cql", ".ddl", ".inc", ".prc", ".tab", ".udf", ".viw"]
   },
   {
     "name": "SQLPL",
@@ -1835,19 +1718,7 @@
   {
     "name": "Shell",
     "type": "programming",
-    "extensions": [
-      ".sh",
-      ".bash",
-      ".bats",
-      ".cgi",
-      ".command",
-      ".fcgi",
-      ".ksh",
-      ".sh.in",
-      ".tmux",
-      ".tool",
-      ".zsh"
-    ]
+    "extensions": [".sh", ".bash", ".bats", ".cgi", ".command", ".fcgi", ".ksh", ".sh.in", ".tmux", ".tool", ".zsh"]
   },
   {
     "name": "ShellSession",
@@ -1952,23 +1823,7 @@
   {
     "name": "TeX",
     "type": "markup",
-    "extensions": [
-      ".tex",
-      ".aux",
-      ".bbx",
-      ".bib",
-      ".cbx",
-      ".cls",
-      ".dtx",
-      ".ins",
-      ".lbx",
-      ".ltx",
-      ".mkii",
-      ".mkiv",
-      ".mkvi",
-      ".sty",
-      ".toc"
-    ]
+    "extensions": [".tex", ".aux", ".bbx", ".bib", ".cbx", ".cls", ".dtx", ".ins", ".lbx", ".ltx", ".mkii", ".mkiv", ".mkvi", ".sty", ".toc"]
   },
   {
     "name": "Tea",
@@ -2048,16 +1903,7 @@
   {
     "name": "VHDL",
     "type": "programming",
-    "extensions": [
-      ".vhdl",
-      ".vhd",
-      ".vhf",
-      ".vhi",
-      ".vho",
-      ".vhs",
-      ".vht",
-      ".vhw"
-    ]
+    "extensions": [".vhdl", ".vhd", ".vhf", ".vhi", ".vho", ".vhs", ".vht", ".vhw"]
   },
   {
     "name": "Vala",
@@ -2077,16 +1923,7 @@
   {
     "name": "Visual Basic",
     "type": "programming",
-    "extensions": [
-      ".vb",
-      ".bas",
-      ".cls",
-      ".frm",
-      ".frx",
-      ".vba",
-      ".vbhtml",
-      ".vbs"
-    ]
+    "extensions": [".vb", ".bas", ".cls", ".frm", ".frx", ".vba", ".vbhtml", ".vbs"]
   },
   {
     "name": "Volt",
@@ -2232,14 +2069,7 @@
   {
     "name": "Xojo",
     "type": "programming",
-    "extensions": [
-      ".xojo_code",
-      ".xojo_menu",
-      ".xojo_report",
-      ".xojo_script",
-      ".xojo_toolbar",
-      ".xojo_window"
-    ]
+    "extensions": [".xojo_code", ".xojo_menu", ".xojo_report", ".xojo_script", ".xojo_toolbar", ".xojo_window"]
   },
   {
     "name": "Xtend",
@@ -2249,15 +2079,7 @@
   {
     "name": "YAML",
     "type": "data",
-    "extensions": [
-      ".yml",
-      ".reek",
-      ".rviz",
-      ".sublime-syntax",
-      ".syntax",
-      ".yaml",
-      ".yaml-tmlanguage"
-    ]
+    "extensions": [".yml", ".reek", ".rviz", ".sublime-syntax", ".syntax", ".yaml", ".yaml-tmlanguage"]
   },
   {
     "name": "YANG",
