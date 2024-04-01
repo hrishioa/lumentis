@@ -1,6 +1,6 @@
 {
   "name": "lumentis",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
   "description": "Create awesome docs from your transcripts, notes and documents in seconds, ready to deploy.",
   "license": "by-nc-4.0",
@@ -16,8 +16,9 @@
     "nextra-theme-docs": "^2.13.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "typescript": "^5.0.0",
-    "worker-threads": "^1.0.0"
+    "worker-threads": "^1.0.0",
+    "typescript": "^5.4.3",
+    "youtube-transcript": "^1.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "latest",
@@ -36,7 +37,9 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"

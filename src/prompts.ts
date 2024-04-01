@@ -244,9 +244,9 @@ Contents
   "Write only the section, no need to talk to me when you're writing it.",
   "Write it as an expert in the themes, but for the intended audience",
   "Don't put mdx code blocks around the output, just start writing.",
-  "Presume that the other sections are written.",
+  "Each subsection and section will have its own page. Just write the specific one you're asked to write.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
-  "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink).",
+  "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink). Use / as the permalink for the intro section.",
   "Provide examples when needed.",
   "Make sure to start headings in each section and subsection at the top level (#)."
 ];

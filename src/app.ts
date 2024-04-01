@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
+import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -49,7 +50,12 @@ import {
   getThemeInferenceMessages,
   getTitleInferenceMessages
 } from "./prompts";
-import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
+import {
+  Outline,
+  OutlineSection,
+  ReadyToGeneratePage,
+  WizardState
+} from "./types";
 import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
@@ -123,29 +129,45 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? \n Drag a folder or text file in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a folder or text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFileOrFolderName || undefined,
-    validate: (filename) => {
-      const parsed_filename = parsePlatformIndependentPath(filename);
-      if (filename?.trim() && !fs.existsSync(parsed_filename))
-        return `File not found - tried to load ${filename}. Try again.`;
-      const file_stats = fs.lstatSync(parsed_filename);
-      if (
-        filename?.trim() &&
-        file_stats.isFile() &&
-        !checkFileIsReadable(parsed_filename)
-      ) {
-        return `File type not supported - tried to load ${filename}. Try again.`;
-      } else if (
-        filename?.trim() &&
-        !file_stats.isDirectory() &&
-        !file_stats.isFile()
-      ) {
-        return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
+    validate: async (filename) => {
+      if (filename?.trim()) {
+        if ((filename === wizardState.primarySourceFileOrFolderName || wizardState.primarySourceFileOrFolderName === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+        if (filename.includes("youtube.com")) {
+          try {
+            const transcript = await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            wizardState.primarySourceFileOrFolderName = filename;
+          } catch (err) {
+            return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
+          }
+        } else {
+          const parsed_filename = parsePlatformIndependentPath(filename);
+          if (filename?.trim() && !fs.existsSync(parsed_filename))
+            return `File not found - tried to load ${filename}. Try again.`;
+          const file_stats = fs.lstatSync(parsed_filename);
+          if (filename?.trim() && file_stats.isFile()) {
+            if (!checkFileIsReadable(parsed_filename)) {
+              return `File type not supported - tried to load ${filename}. Try again.`;
+            } else {
+              try {
+                const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+                wizardState.loadedPrimarySource = dataFromFile;
+                wizardState.primarySourceFileOrFolderName = parsePlatformIndependentPath(filename);
+              } catch (err) {
+                return `Couldn't read file - tried to load ${filename}. Try again.`;
+              }
+            }
+          } else if (filename?.trim() && !file_stats.isDirectory() && !file_stats.isFile()) {
+            return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
+          }
+        }
       }
       return true;
     }
   });
+  saveState(wizardState);
 
   if (fileName.trim()) {
     const parsed_filename = parsePlatformIndependentPath(fileName);
@@ -278,6 +300,7 @@ Note: Some files do not appear as we don't believe we can read them.`,
 
       // TODO: Is this the  best way to handle this?
       wizardState.loadedPrimarySource = combineFilesToString(file_choices);
+      saveState(wizardState);
 
       console.log(
         "\x1b[31mYour source has a token count of:\x1b[0m",
@@ -287,7 +310,9 @@ Note: Some files do not appear as we don't believe we can read them.`,
       console.log("Doesn't seem to be a file or a directory. Exiting.");
       return;
     }
-  } else {
+  }
+
+  if (!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
@@ -308,7 +333,8 @@ Note: Some files do not appear as we don't believe we can read them.`,
       validate: (input) => {
         if (!input.trim()) return "Please enter something - ideally a lot!";
         return true;
-      }
+      },
+      default: wizardState.loadedPrimarySource
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
@@ -320,7 +346,7 @@ Note: Some files do not appear as we don't believe we can read them.`,
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${CLAUDE_PRIMARYSOURCE_BUDGET - primarySourceTokens
+      message: `Your content looks a little too large by about ${primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
         } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
@@ -946,18 +972,17 @@ Note: Some files do not appear as we don't believe we can read them.`,
   });
 
   function getPageWritingMessages(
+    overallOutline: Outline,
     sections: OutlineSection[],
-    levels: string[],
     addDiagrams: boolean
   ): ReadyToGeneratePage[] {
     return sections.flatMap((section) => {
-      const sectionMessages = {
+      const sectionsReadyToGenerate: ReadyToGeneratePage = {
         section,
-        levels: levels.concat([section.permalink]),
+        levels: section.permalink.split(/(?<!\\)\//g).slice(1),
         messages: getPageGenerationInferenceMessages(
           outlineQuestions,
-          // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
-          wizardState.generatedOutline!,
+          overallOutline,
           section,
           addDiagrams
         )
@@ -965,18 +990,18 @@ Note: Some files do not appear as we don't believe we can read them.`,
 
       if (section.subsections)
         return [
-          sectionMessages,
+          sectionsReadyToGenerate,
           ...getPageWritingMessages(
+            overallOutline,
             section.subsections,
-            levels.concat([section.permalink]),
             addDiagrams
           )
         ];
-      else return [sectionMessages];
+      else return [sectionsReadyToGenerate];
     });
   }
 
-  const cleanedOutline = JSON.parse(
+  const cleanedOutline: Outline = JSON.parse(
     JSON.stringify(wizardState.generatedOutline)
   );
 
@@ -984,11 +1009,24 @@ Note: Some files do not appear as we don't believe we can read them.`,
     cleanedOutline.sections
   );
 
+  // TODO: I know this is a bad place to put this function
+  // but it's like 2 am
+  function setPermalinksToRelatives(section: OutlineSection, levels: string[]) {
+    section.subsections?.forEach((subsection, i) => {
+      setPermalinksToRelatives(subsection, [...levels, section.permalink]);
+    });
+    section.permalink = `/${[...levels, section.permalink].join("/")}`;
+  }
+
+  for (const section of cleanedOutline.sections) {
+    setPermalinksToRelatives(section, []);
+  }
+
   console.log("\nCalculating final writing costs...\n");
 
   const pageWritingMessages = getPageWritingMessages(
+    cleanedOutline,
     cleanedOutline.sections,
-    [],
     wizardState.addDiagrams
   );
 
