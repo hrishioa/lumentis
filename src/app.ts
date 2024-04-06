@@ -2,6 +2,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { countTokens } from "@anthropic-ai/tokenizer";
+import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -9,9 +11,13 @@ import {
   editor,
   input,
   password,
-  select,
+  select
 } from "@inquirer/prompts";
-import { getClaudeCosts, runClaudeInference } from "./ai";
+import {
+  CLAUDE_PRIMARYSOURCE_BUDGET,
+  getClaudeCosts,
+  runClaudeInference
+} from "./ai";
 import {
   CLAUDE_MODELS,
   EDITORS,
@@ -19,7 +25,7 @@ import {
   RUNNERS,
   WRITING_STYLE_SIZE_LIMIT,
   lumentisFolderPath,
-  wizardStatePath,
+  wizardStatePath
 } from "./constants";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
@@ -30,9 +36,14 @@ import {
   getPageGenerationInferenceMessages,
   getQuestionsInferenceMessages,
   getThemeInferenceMessages,
-  getTitleInferenceMessages,
+  getTitleInferenceMessages
 } from "./prompts";
-import { OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
+import {
+  Outline,
+  OutlineSection,
+  ReadyToGeneratePage,
+  WizardState
+} from "./types";
 import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
@@ -59,7 +70,7 @@ async function runWizard() {
     wizardState.gotDirectoryPermission = await confirm({
       message: "Are you in a clean directory I can start saving things to?",
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎"),
+      transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!wizardState.gotDirectoryPermission) {
@@ -81,11 +92,11 @@ async function runWizard() {
       ...CLAUDE_MODELS.map((model) => ({
         name: model.name,
         value: model.model,
-        description: model.smarterDescription,
+        description: model.smarterDescription
       })),
-      new Separator(),
+      new Separator()
     ],
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model,
+    default: wizardState.smarterModel || CLAUDE_MODELS[0].model
   });
 
   saveState(wizardState);
@@ -96,7 +107,7 @@ async function runWizard() {
     message:
       "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
     default: wizardState.streamToConsole || false,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   saveState(wizardState);
@@ -106,28 +117,38 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? \n Drag a text file in here, or leave empty/whitespace to open an editor: ",
+      "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
-    validate: (filename) => {
-      if (
-        filename?.trim() &&
-        !fs.existsSync(parsePlatformIndependentPath(filename))
-      )
-        return `File not found - tried to load ${filename}. Try again.`;
+    validate: async (filename) => {
+      if(filename?.trim()) {
+        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+        if (filename.includes("youtube.com")) {
+          try {
+            const transcript = await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            wizardState.primarySourceFilename = filename;
+          } catch(err) {
+            return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
+          }
+        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+          return `File not found - tried to load ${filename}. Try again.`;
+        } else {
+          try {
+            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+            wizardState.loadedPrimarySource = dataFromFile;
+            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
+          } catch(err) {
+            return `Couldn't read file - tried to load ${filename}. Try again.`;
+          }
+        }
+      }
       return true;
-    },
+    }
   });
 
-  if (fileName.trim()) {
-    wizardState.primarySourceFilename = parsePlatformIndependentPath(fileName);
+  saveState(wizardState);
 
-    const dataFromFile = fs.readFileSync(
-      wizardState.primarySourceFilename,
-      "utf-8"
-    );
-
-    wizardState.loadedPrimarySource = dataFromFile;
-  } else {
+  if(!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
@@ -135,9 +156,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command,
+        value: editor.command
       })),
-      default: wizardState.preferredEditor || EDITORS[0].command,
+      default: wizardState.preferredEditor || EDITORS[0].command
     });
 
     process.env.EDITOR = editorName;
@@ -149,12 +170,30 @@ async function runWizard() {
         if (!input.trim()) return "Please enter something - ideally a lot!";
         return true;
       },
+      default: wizardState.loadedPrimarySource
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
   }
 
   saveState(wizardState);
+
+  const primarySourceTokens = countTokens(wizardState.loadedPrimarySource);
+
+  if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+    wizardState.ignorePrimarySourceSize = await confirm({
+      message: `Your content looks a little too large by about ${
+        primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
+      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      default: wizardState.ignorePrimarySourceSize || false,
+      transformer: (answer) => (answer ? "👍" : "👎")
+    });
+
+    if (!wizardState.ignorePrimarySourceSize) {
+      console.log("No problem! You can run me again to adjust the source.");
+      return;
+    }
+  }
 
   // Ask for Anthropic key
 
@@ -175,7 +214,7 @@ async function runWizard() {
 
         if (key.trim()) return `Your key didn't work. Try again?`;
         else return `The key in your env didn't work. Try again?`;
-      },
+      }
     })) || undefined;
 
   // Ask for source description
@@ -190,7 +229,7 @@ async function runWizard() {
       700,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.description || undefined,
+    default: wizardState.description || undefined
   });
 
   if (description.trim()) {
@@ -215,7 +254,7 @@ async function runWizard() {
       wizardState.description = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.description,
-        validate: (input) => !!input.trim() || "Please enter a description.",
+        validate: (input) => !!input.trim() || "Please enter a description."
       });
     }
   }
@@ -238,7 +277,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.title || undefined,
+    default: wizardState.title || undefined
   });
 
   if (title.trim()) {
@@ -260,13 +299,13 @@ async function runWizard() {
         choices: titleOptionsResponse.response
           .map((title: string) => ({
             name: title,
-            value: title,
+            value: title
           }))
           .concat([
             new Separator(),
             { name: "Enter a new one", value: "__new__" },
-            new Separator(),
-          ]),
+            new Separator()
+          ])
       });
 
       wizardState.title =
@@ -277,7 +316,7 @@ async function runWizard() {
       wizardState.title = await input({
         message: `Couldn't generate. Please type one in? `,
         default: wizardState.title,
-        validate: (input) => !!input.trim() || "Please enter a title.",
+        validate: (input) => !!input.trim() || "Please enter a title."
       });
     }
   }
@@ -300,7 +339,7 @@ async function runWizard() {
         return `Not a valid URL - ${favicon_url.trim()}. Try again.`;
       }
       return true;
-    },
+    }
   });
 
   saveState(wizardState);
@@ -317,7 +356,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default: wizardState.coreThemes || undefined,
+    default: wizardState.coreThemes || undefined
   });
 
   if (themesFromUser.trim()) {
@@ -339,12 +378,12 @@ async function runWizard() {
         choices: themesOptionsResponse.response.map((theme: string) => ({
           name: theme,
           value: theme,
-          checked: true,
-        })),
+          checked: true
+        }))
       });
 
       const newThemesFromUser = await input({
-        message: "Enter any more (leave empty for none): ",
+        message: "Enter any more (leave empty for none): "
       });
 
       wizardState.coreThemes = (
@@ -356,7 +395,7 @@ async function runWizard() {
       wizardState.coreThemes = await input({
         message: `Couldn't generate. Please type some in? `,
         default: wizardState.coreThemes,
-        validate: (input) => !!input.trim() || "Please enter a theme.",
+        validate: (input) => !!input.trim() || "Please enter a theme."
       });
     }
   }
@@ -378,7 +417,7 @@ async function runWizard() {
     ).toFixed(4)}): `,
     default:
       (wizardState.intendedAudience && wizardState.intendedAudience) ||
-      undefined,
+      undefined
   });
 
   if (audienceFromUser.trim()) {
@@ -400,12 +439,12 @@ async function runWizard() {
         choices: audienceOptionsResponse.response.map((audience: string) => ({
           name: audience,
           value: audience,
-          checked: true,
-        })),
+          checked: true
+        }))
       });
 
       const newAudienceFromUser = await input({
-        message: "Enter any more (leave empty for none): ",
+        message: "Enter any more (leave empty for none): "
       });
 
       wizardState.intendedAudience = (
@@ -418,7 +457,7 @@ async function runWizard() {
         message: `Couldn't generate. Please type some keywords in? `,
         default: wizardState.intendedAudience,
         validate: (input) =>
-          !!input.trim() || "Please enter some words describing the audience.",
+          !!input.trim() || "Please enter some words describing the audience."
       });
     }
   }
@@ -442,7 +481,7 @@ async function runWizard() {
       wizardState.smarterModel
     ).toFixed(4)}): `,
     default: false,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   if (questionPermission) {
@@ -465,9 +504,9 @@ async function runWizard() {
             isCommandAvailable(editor.command)
           ).map((editor) => ({
             name: editor.name,
-            value: editor.command,
+            value: editor.command
           })),
-          default: wizardState.preferredEditor || EDITORS[0].command,
+          default: wizardState.preferredEditor || EDITORS[0].command
         });
 
         wizardState.preferredEditor = editorName;
@@ -483,7 +522,7 @@ async function runWizard() {
             (question: string, index: number) =>
               `${index + 1}. ${question}\n\nAnswer: \n\n`
           )
-          .join("\n")}`,
+          .join("\n")}`
       });
 
       wizardState.ambiguityExplained =
@@ -508,7 +547,7 @@ async function runWizard() {
       )
         return `File not found - tried to load ${filename}. Try again.`;
       return true;
-    },
+    }
   });
 
   if (writingExampleFilename.trim()) {
@@ -553,7 +592,7 @@ async function runWizard() {
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
-      transformer: (answer) => (answer ? "👍" : "👎"),
+      transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!confirmOutline) {
@@ -570,7 +609,10 @@ async function runWizard() {
       wizardState.anthropicKey,
       wizardState.streamToConsole,
       "outline",
-      "started_object"
+      "started_object",
+      undefined,
+      undefined,
+      true
     );
 
     if (outlineResponse.success) {
@@ -631,8 +673,8 @@ async function runWizard() {
               section.title
             }`,
             value: levels.concat([section.permalink]).join("->"),
-            checked: !section.disabled,
-          },
+            checked: !section.disabled
+          }
         ];
         if (section.subsections)
           return flattened.concat(
@@ -655,7 +697,7 @@ async function runWizard() {
       required: true,
       pageSize: 15,
       message: "Pick sections you want to keep: ",
-      choices: [...outlineFlatList, new Separator()],
+      choices: [...outlineFlatList, new Separator()]
     });
 
     function setDisabledSections(sections: OutlineSection[], levels: string[]) {
@@ -708,11 +750,12 @@ async function runWizard() {
         regenerateOutlineInferenceMessages,
         4096,
         wizardState.smarterModel
-      ).toFixed(4)}): `,
+      ).toFixed(4)}): `
     });
 
     if (newSections.trim()) {
-      wizardState.outlineComments += "\n" + newSections;
+      const tempOutlineComments =
+        wizardState.outlineComments + "\n" + newSections;
 
       saveState(wizardState);
 
@@ -720,7 +763,7 @@ async function runWizard() {
         getOutlineRegenerationInferenceMessages(
           outlineQuestions,
           outlineCopyForImprovements,
-          wizardState.outlineComments
+          tempOutlineComments
         );
 
       const newSectionsResponse = await runClaudeInference(
@@ -730,10 +773,15 @@ async function runWizard() {
         wizardState.anthropicKey,
         wizardState.streamToConsole,
         "regenerateOutline",
-        "started_object"
+        "started_object",
+        undefined,
+        undefined,
+        true
       );
 
       if (newSectionsResponse.success) {
+        wizardState.outlineComments = tempOutlineComments;
+
         wizardState.generatedOutline = newSectionsResponse.response;
 
         saveState(wizardState);
@@ -759,41 +807,40 @@ async function runWizard() {
     message:
       "Do you want to add diagrams, latex and flowcharts? (This works perfectly 98% of the time): ",
     default: wizardState.addDiagrams || true,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   function getPageWritingMessages(
+    overallOutline: Outline,
     sections: OutlineSection[],
-    levels: string[],
     addDiagrams: boolean
   ): ReadyToGeneratePage[] {
     return sections.flatMap((section) => {
-      const sectionMessages = {
+      const sectionsReadyToGenerate: ReadyToGeneratePage = {
         section,
-        levels: levels.concat([section.permalink]),
+        levels: section.permalink.split(/(?<!\\)\//g).slice(1),
         messages: getPageGenerationInferenceMessages(
           outlineQuestions,
-          // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
-          wizardState.generatedOutline!,
+          overallOutline,
           section,
           addDiagrams
-        ),
+        )
       };
 
       if (section.subsections)
         return [
-          sectionMessages,
+          sectionsReadyToGenerate,
           ...getPageWritingMessages(
+            overallOutline,
             section.subsections,
-            levels.concat([section.permalink]),
             addDiagrams
-          ),
+          )
         ];
-      else return [sectionMessages];
+      else return [sectionsReadyToGenerate];
     });
   }
 
-  const cleanedOutline = JSON.parse(
+  const cleanedOutline: Outline = JSON.parse(
     JSON.stringify(wizardState.generatedOutline)
   );
 
@@ -801,11 +848,24 @@ async function runWizard() {
     cleanedOutline.sections
   );
 
+  // TODO: I know this is a bad place to put this function
+  // but it's like 2 am
+  function setPermalinksToRelatives(section: OutlineSection, levels: string[]) {
+    section.subsections?.forEach((subsection, i) => {
+      setPermalinksToRelatives(subsection, [...levels, section.permalink]);
+    });
+    section.permalink = `/${[...levels, section.permalink].join("/")}`;
+  }
+
+  for (const section of cleanedOutline.sections) {
+    setPermalinksToRelatives(section, []);
+  }
+
   console.log("\nCalculating final writing costs...\n");
 
   const pageWritingMessages = getPageWritingMessages(
+    cleanedOutline,
     cleanedOutline.sections,
-    [],
     wizardState.addDiagrams
   );
 
@@ -823,13 +883,13 @@ async function runWizard() {
         value: model.model,
         description: `${model.pageDescription} (costs $${costs[index].toFixed(
           4
-        )})`,
+        )})`
       })),
-      new Separator(),
+      new Separator()
     ],
     default:
       wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
+      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
   });
 
   saveState(wizardState);
@@ -842,9 +902,9 @@ async function runWizard() {
         isCommandAvailable(editor.command)
       ).map((editor) => ({
         name: editor.name,
-        value: editor.command,
+        value: editor.command
       })),
-      default: "npm",
+      default: "npm"
     });
   }
 
@@ -865,7 +925,7 @@ async function runWizard() {
         message:
           "There seem to already be a pages folder. Should we overwrite? ",
         default: wizardState.overwritePages || false,
-        transformer: (answer) => (answer ? "👍" : "👎"),
+        transformer: (answer) => (answer ? "👍" : "👎")
       }))) ||
     false;
 
@@ -885,7 +945,7 @@ async function runWizard() {
   const finalCheck = await confirm({
     message: "#######\n\nReady to start? ",
     default: true,
-    transformer: (answer) => (answer ? "👍" : "👎"),
+    transformer: (answer) => (answer ? "👍" : "👎")
   });
 
   if (!finalCheck) {

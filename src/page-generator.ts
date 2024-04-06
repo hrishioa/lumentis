@@ -229,7 +229,8 @@ export async function generatePages(
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
-    const permalink = i === 0 ? "index" : page.section.permalink;
+
+    const permalink = i === 0 ? "index" : page.levels[page.levels.length - 1];
 
     const pageFolder = path.join(pagesFolder, ...page.levels.slice(0, -1));
 
@@ -252,8 +253,7 @@ export async function generatePages(
       if (i === 1) {
         if (
           pages.find(
-            (p) =>
-              p.levels.length > 1 && p.levels[0] === pages[0].section.permalink
+            (p) => p.levels.length > 1 && p.levels[0] === pages[0].levels[0]
           )
         ) {
           fs.writeFileSync(
@@ -262,7 +262,7 @@ export async function generatePages(
               ...JSON.parse(
                 fs.readFileSync(path.join(pagesFolder, "_meta.json"), "utf-8")
               ),
-              [pages[0].section.permalink]: "Basics"
+              [pages[0].levels[pages[0].levels.length - 1]]: "Basics"
             })
           );
         }

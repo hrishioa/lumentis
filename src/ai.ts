@@ -8,6 +8,12 @@ import {
   NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
   lumentisFolderPath
 } from "./constants";
+import {
+  getOutlineInferenceMessages,
+  getPageGenerationInferenceMessages
+} from "./prompts";
+import { Outline } from "./types";
+import { partialParse } from "./utils";
 
 export async function runClaudeInference(
   messages: MessageParam[],
@@ -18,7 +24,8 @@ export async function runClaudeInference(
   saveName?: string,
   jsonType?: "parse" | "started_array" | "started_object",
   saveToFilepath?: string,
-  prefix?: string
+  prefix?: string,
+  continueOnPartialJSON?: boolean
 ) {
   const messageBackupSpot = path.join(lumentisFolderPath, MESSAGES_FOLDER);
 
@@ -28,6 +35,16 @@ export async function runClaudeInference(
       path.join(messageBackupSpot, saveName + ".json"),
       JSON.stringify(messages, null, 2)
     );
+  }
+
+  // remove trailing whitespace from last message
+  if (
+    messages[messages.length - 1] &&
+    messages[messages.length - 1].role === "assistant"
+  ) {
+    messages[messages.length - 1].content = (
+      messages[messages.length - 1].content as string
+    ).trimEnd();
   }
 
   try {
@@ -94,6 +111,64 @@ export async function runClaudeInference(
 
         fullMessage = fullMessage.split("```")[0];
       }
+    }
+
+    if (jsonType) {
+      let potentialPartialJSON = fullMessage;
+
+      do {
+        // TODO: This is a bit of a mess because we're trying to maintain top-down flow
+        // and for upcoming migration to OpenAI, rewrite later if it's too ugly
+        try {
+          const parsedJSON = JSON.parse(potentialPartialJSON);
+          fullMessage = JSON.stringify(parsedJSON, null, 2);
+
+          break;
+        } catch (err) {
+          const partialJSON = partialParse(potentialPartialJSON);
+
+          fullMessage = JSON.stringify(partialJSON, null, 2);
+
+          if (!continueOnPartialJSON) {
+            break;
+          }
+        }
+
+        const newMessages = [
+          ...(messages[messages.length - 1].role === "assistant"
+            ? JSON.parse(JSON.stringify(messages)).slice(0, -1)
+            : JSON.parse(JSON.stringify(messages))),
+          {
+            role: "assistant",
+            content: potentialPartialJSON
+          }
+        ];
+
+        try {
+          const continuance = await runClaudeInference(
+            newMessages,
+            model,
+            maxOutputTokens,
+            apiKey,
+            streamToConsole,
+            saveName,
+            undefined,
+            undefined,
+            undefined,
+            false
+          );
+
+          if (continuance.success === false) {
+            const sortOfPartialJSON = partialParse(potentialPartialJSON);
+            fullMessage = JSON.stringify(sortOfPartialJSON, null, 2);
+          }
+
+          potentialPartialJSON += continuance.response;
+        } catch (err) {
+          console.error("Breaking because of error - ", err);
+          break;
+        }
+      } while (continueOnPartialJSON);
     }
 
     if (saveName) {
@@ -172,3 +247,45 @@ function getClaudeCostsWithTokens(
 
   return inputCost + outputCost;
 }
+
+export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
+  const outlineMessages = getOutlineInferenceMessages(
+    "This is some title",
+    "",
+    "This is a long ass description of some sort meant to test things. The idea is just to get a sense of token cost with the base prompts and then add a good enough budget on top of it.",
+    "Crew Management, Maritime Planning, Compliance Calculation, Scheduling, System Architecture, Usage",
+    "AI/ML practitioners, Researchers in AI/ML, Entrepreneurs in AI/ML, Software engineers, Technical decision-makers, Developers working with LLMs, AI/ML students and learners, Managers in AI-driven businesses, Technical content writers, Documenters of AI/ML frameworks",
+    "",
+    ""
+  );
+
+  const outline: Outline = {
+    title: "Lorem ipsum dolor amet",
+    sections: [
+      {
+        title: "formatResponseMessage",
+        permalink: "format-response-message",
+        singleSentenceDescription:
+          "Information on the formatResponseMessage utility function and its purpose.",
+        disabled: false
+      }
+    ]
+  };
+
+  const writingMessages = getPageGenerationInferenceMessages(
+    outlineMessages,
+    outline,
+    outline.sections[0],
+    true
+  );
+
+  const writingTokens = countTokens(
+    writingMessages.map((m) => m.content).join("\n")
+  );
+
+  const OUTLINE_BUDGET = 4096 * 3;
+
+  const WRITING_BUDGET = 4096 * 4;
+
+  return 200000 - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
+})();
