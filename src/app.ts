@@ -3,7 +3,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
-import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -13,6 +12,7 @@ import {
   password,
   select
 } from "@inquirer/prompts";
+import { YoutubeTranscript } from "youtube-transcript";
 import {
   CLAUDE_PRIMARYSOURCE_BUDGET,
   getClaudeCosts,
@@ -120,24 +120,36 @@ async function runWizard() {
       "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
     validate: async (filename) => {
-      if(filename?.trim()) {
-        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+      if (filename?.trim()) {
+        if (
+          (filename === wizardState.primarySourceFilename ||
+            filename === parsePlatformIndependentPath(filename)) &&
+          wizardState.loadedPrimarySource
+        )
+          return true;
         if (filename.includes("youtube.com")) {
           try {
-            const transcript = await YoutubeTranscript.fetchTranscript(filename);
-            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            const transcript =
+              await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript
+              .map((line) => line.text)
+              .join("\n");
             wizardState.primarySourceFilename = filename;
-          } catch(err) {
+          } catch (err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
-        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+        } else if (!fs.existsSync(parsePlatformIndependentPath(filename))) {
           return `File not found - tried to load ${filename}. Try again.`;
         } else {
           try {
-            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+            const dataFromFile = fs.readFileSync(
+              parsePlatformIndependentPath(filename),
+              "utf-8"
+            );
             wizardState.loadedPrimarySource = dataFromFile;
-            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
-          } catch(err) {
+            wizardState.primarySourceFilename =
+              parsePlatformIndependentPath(filename);
+          } catch (err) {
             return `Couldn't read file - tried to load ${filename}. Try again.`;
           }
         }
@@ -148,7 +160,7 @@ async function runWizard() {
 
   saveState(wizardState);
 
-  if(!wizardState.loadedPrimarySource) {
+  if (!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
