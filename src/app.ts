@@ -115,10 +115,10 @@ async function runWizard() {
   // Ask for transcript/text file
   // TODO: if they give a different primary source than already exists, wipe all subsequent defaults
 
-  const fileName = await input({
+  const sourcePath = await input({
     message:
-      "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
-    default: wizardState.primarySourceFilename || undefined,
+      "What's your primary source? \n Drag a text file, a directory path (use --dir or --path flag), or a youtube link (experimental) in here, or leave empty/whitespace to open an editor: ",
+    default: wizardState.primarySourcePath || undefined,
     validate: async (filename) => {
       if(filename?.trim()) {
         if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
@@ -130,13 +130,22 @@ async function runWizard() {
           } catch(err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
-        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+        } else if(!fs.existsSync(parsePlatformIndependentPath(sourcePath))) {
           return `File not found - tried to load ${filename}. Try again.`;
         } else {
           try {
-            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
-            wizardState.loadedPrimarySource = dataFromFile;
-            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
+            const parsedPath = parsePlatformIndependentPath(sourcePath);
+            if (sourcePath.startsWith("--dir") || sourcePath.startsWith("--path")) {
+              const directoryPath = sourcePath.split(" ")[1];
+              if (!fs.existsSync(directoryPath) || !fs.lstatSync(directoryPath).isDirectory()) {
+                return `The provided path does not exist or is not a directory: ${directoryPath}. Try again.`;
+              }
+              await processTextFilesInDirectory(directoryPath, wizardState);
+            } else if (fs.lstatSync(parsedPath).isFile()) {
+              const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(sourcePath), "utf-8");
+              wizardState.loadedPrimarySource = dataFromFile;
+              wizardState.primarySourcePath = parsePlatformIndependentPath(sourcePath);
+            }
           } catch(err) {
             return `Couldn't read file - tried to load ${filename}. Try again.`;
           }
