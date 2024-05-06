@@ -23,6 +23,7 @@ A simple way to generate comprehensive, easy-to-skim docs from your meeting tran
 ## How to use
 
 1. Run `npx lumentis` in an empty directory. That's really it. You can skip the rest of this README.
+(DON'T run lumentis in its own project directory after cloning the repo!)
 2. Feed it a transcript, doc or notes when asked.
 3. Answer some questions about themes and audience.
 4. Pick what you like from the generated outline.
