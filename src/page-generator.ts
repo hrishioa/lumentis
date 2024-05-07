@@ -29,6 +29,13 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
       build: "next build",
       start: "next start"
     },
+    dependencies: {
+      next: "latest",
+      nextra: "latest",
+      "nextra-theme-docs": "latest",
+      react: "^18",
+      "react-dom": "^18"
+    },
     keywords: wizardState.coreThemes?.split(",").map((kw) => kw.trim()) || []
   };
 
