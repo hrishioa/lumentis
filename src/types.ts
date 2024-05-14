@@ -7,6 +7,7 @@ export type LLMOutlineSection = {
   title: string;
   permalink: string;
   singleSentenceDescription: string;
+  keythingsToCover:string[];
   subsections?: OutlineSection[];
 };
 

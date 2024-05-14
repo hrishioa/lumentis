@@ -200,6 +200,7 @@ type OutlineSection = {
   title: string;
   permalink: string; // something easier to use as identifier
   singleSentenceDescription: string;
+  keythingsToCover:string[]; very short strings to list things you want to make sure are covered in this section.
   subsections?: OutlineSection[];
 };
 
@@ -247,7 +248,7 @@ Contents
   "Each subsection and section will have its own page. Just write the specific one you're asked to write.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink). Use / as the permalink for the intro section.",
-  "Provide examples when needed.",
+  "Provide examples when needed. Use the source when you can, quoted (if you can attribute) or otherwise.",
   "Make sure to start headings in each section and subsection at the top level (#)."
 ];
 
