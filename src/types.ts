@@ -31,8 +31,8 @@ export type WizardState = Partial<{
   gotDirectoryPermission: boolean;
   smarterModel: string;
   streamToConsole: boolean;
-  primarySourceFileOrFolderName: string;
-  primarySourceTyle: 'youtube' | 'file' | 'folder' | 'freetext';
+  primarySourceAccessName: string;
+  primarySourceType: 'youtube' | 'file' | 'folder' | 'freetext';
   loadedPrimarySource: string;
   anthropicKey: string;
   description: string;
