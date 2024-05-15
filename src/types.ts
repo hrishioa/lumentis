@@ -22,11 +22,18 @@ export type ReadyToGeneratePage = {
   messages: MessageParam[];
 };
 
+export type CheckboxInput = {
+  name: string;
+  value: string;
+  checked: boolean;
+};
+
 export type WizardState = Partial<{
   gotDirectoryPermission: boolean;
   smarterModel: string;
   streamToConsole: boolean;
-  primarySourceFilename: string;
+  primarySourceAccessName: string;
+  primarySourceType: 'youtube' | 'file' | 'folder' | 'freetext';
   loadedPrimarySource: string;
   anthropicKey: string;
   description: string;

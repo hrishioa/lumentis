@@ -3,15 +3,8 @@ import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { countTokens } from "@anthropic-ai/tokenizer";
-import {
-  MESSAGES_FOLDER,
-  NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
-  lumentisFolderPath
-} from "./constants";
-import {
-  getOutlineInferenceMessages,
-  getPageGenerationInferenceMessages
-} from "./prompts";
+import { MESSAGES_FOLDER, NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE, lumentisFolderPath } from "./constants";
+import { getOutlineInferenceMessages, getPageGenerationInferenceMessages } from "./prompts";
 import { Outline } from "./types";
 import { partialParse } from "./utils";
 
@@ -31,20 +24,12 @@ export async function runClaudeInference(
 
   if (saveName) {
     if (!fs.existsSync(messageBackupSpot)) fs.mkdirSync(messageBackupSpot);
-    fs.writeFileSync(
-      path.join(messageBackupSpot, saveName + ".json"),
-      JSON.stringify(messages, null, 2)
-    );
+    fs.writeFileSync(path.join(messageBackupSpot, saveName + ".json"), JSON.stringify(messages, null, 2));
   }
 
   // remove trailing whitespace from last message
-  if (
-    messages[messages.length - 1] &&
-    messages[messages.length - 1].role === "assistant"
-  ) {
-    messages[messages.length - 1].content = (
-      messages[messages.length - 1].content as string
-    ).trimEnd();
+  if (messages[messages.length - 1] && messages[messages.length - 1].role === "assistant") {
+    messages[messages.length - 1].content = (messages[messages.length - 1].content as string).trimEnd();
   }
 
   try {
@@ -60,21 +45,13 @@ export async function runClaudeInference(
     let fullMessage = "";
     let diffToFlush = 0;
 
-    if (streamToConsole)
-      process.stdout.write(
-        `\n\nStreaming from ${model}${
-          saveToFilepath ? ` to ${saveToFilepath}` : ""
-        }: `
-      );
+    if (streamToConsole) process.stdout.write(`\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""}: `);
 
     for await (const chunk of response) {
       const chunkText =
-        (chunk.type === "content_block_start" && chunk.content_block.text) ||
-        (chunk.type === "content_block_delta" && chunk.delta.text) ||
-        "";
+        (chunk.type === "content_block_start" && chunk.content_block.text) || (chunk.type === "content_block_delta" && chunk.delta.text) || "";
 
-      if (chunk.type === "message_delta")
-        outputTokens += chunk.usage.output_tokens;
+      if (chunk.type === "message_delta") outputTokens += chunk.usage.output_tokens;
 
       if (streamToConsole) process.stdout.write(chunkText);
 
@@ -173,10 +150,7 @@ export async function runClaudeInference(
 
     if (saveName) {
       if (!fs.existsSync(messageBackupSpot)) fs.mkdirSync(messageBackupSpot);
-      fs.writeFileSync(
-        path.join(messageBackupSpot, saveName + "_response" + ".txt"),
-        fullMessage
-      );
+      fs.writeFileSync(path.join(messageBackupSpot, saveName + "_response" + ".txt"), fullMessage);
     }
 
     if (saveToFilepath) {
@@ -198,34 +172,19 @@ export async function runClaudeInference(
   }
 }
 
-export function getClaudeCosts(
-  messages: MessageParam[],
-  outputTokensExpected: number,
-  model: string
-) {
+export function getClaudeCosts(messages: MessageParam[], outputTokensExpected: number, model: string) {
   const inputText: string = messages.map((m) => m.content).join("\n");
   return getClaudeCostsFromText(inputText, outputTokensExpected, model);
 }
 
-export function getClaudeCostsFromText(
-  inputPrompt: string,
-  outputTokensExpected: number,
-  model: string
-) {
+export function getClaudeCostsFromText(inputPrompt: string, outputTokensExpected: number, model: string) {
   const inputTokens = countTokens(inputPrompt);
 
   return getClaudeCostsWithTokens(inputTokens, outputTokensExpected, model);
 }
 
-function getClaudeCostsWithTokens(
-  inputTokens: number,
-  outputTokens: number,
-  model: string
-) {
-  const priceList: Record<
-    string,
-    { inputTokensPerM: number; outputTokensPerM }
-  > = {
+function getClaudeCostsWithTokens(inputTokens: number, outputTokens: number, model: string) {
+  const priceList: Record<string, { inputTokensPerM: number; outputTokensPerM }> = {
     "claude-3-opus-20240229": {
       inputTokensPerM: 15,
       outputTokensPerM: 75
@@ -265,23 +224,15 @@ export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
       {
         title: "formatResponseMessage",
         permalink: "format-response-message",
-        singleSentenceDescription:
-          "Information on the formatResponseMessage utility function and its purpose.",
+        singleSentenceDescription: "Information on the formatResponseMessage utility function and its purpose.",
         disabled: false
       }
     ]
   };
 
-  const writingMessages = getPageGenerationInferenceMessages(
-    outlineMessages,
-    outline,
-    outline.sections[0],
-    true
-  );
+  const writingMessages = getPageGenerationInferenceMessages(outlineMessages, outline, outline.sections[0], true);
 
-  const writingTokens = countTokens(
-    writingMessages.map((m) => m.content).join("\n")
-  );
+  const writingTokens = countTokens(writingMessages.map((m) => m.content).join("\n"));
 
   const OUTLINE_BUDGET = 4096 * 3;
 

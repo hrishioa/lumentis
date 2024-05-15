@@ -40,10 +40,7 @@ interface NonWhitespaceCharacter {
   index: number;
 }
 
-function getNonWhitespaceCharacterOfStringAt(
-  s: string,
-  index: number
-): NonWhitespaceCharacter {
+function getNonWhitespaceCharacterOfStringAt(s: string, index: number): NonWhitespaceCharacter {
   let i = index;
 
   while (s[i].match(/\s/) !== null) {
@@ -122,11 +119,7 @@ export function partialParse(str: string): any {
         lastKV !== "true" &&
         lastKV !== "null" &&
         lastKV.match(/^\d+$/) === null &&
-        !(
-          lastKV.length !== 1 &&
-          lastKV[0] === '"' &&
-          lastKV[lastKV.length - 1] === '"'
-        )
+        !(lastKV.length !== 1 && lastKV[0] === '"' && lastKV[lastKV.length - 1] === '"')
       ) {
         s = s.slice(0, j);
       }

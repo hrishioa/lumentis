@@ -3,30 +3,30 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
-import { YoutubeTranscript } from 'youtube-transcript';
-import {
-  Separator,
-  checkbox,
-  confirm,
-  editor,
-  input,
-  password,
-  select
-} from "@inquirer/prompts";
-import {
-  CLAUDE_PRIMARYSOURCE_BUDGET,
-  getClaudeCosts,
-  runClaudeInference
-} from "./ai";
+import { Separator, checkbox, confirm, editor, input, password, select } from "@inquirer/prompts";
+import dirTree from "directory-tree";
+import { YoutubeTranscript } from "youtube-transcript";
+import { CLAUDE_PRIMARYSOURCE_BUDGET, getClaudeCosts, runClaudeInference } from "./ai";
 import {
   CLAUDE_MODELS,
   EDITORS,
   LUMENTIS_FOLDER,
+  MAX_TOKEN_LIMIT,
   RUNNERS,
   WRITING_STYLE_SIZE_LIMIT,
   lumentisFolderPath,
   wizardStatePath
 } from "./constants";
+import {
+  allExclusions,
+  checkFileIsReadable,
+  combineFilesToString,
+  flattenFileTreeForCheckbox,
+  getAdditionalPromptTokens,
+  getFileTree,
+  removeDeselectedItems,
+  removeExcludedFilesAndAddTokenCount
+} from "./folder-importing/utils";
 import { generatePages, idempotentlySetupNextraDocs } from "./page-generator";
 import {
   getAudienceInferenceMessages,
@@ -38,12 +38,7 @@ import {
   getThemeInferenceMessages,
   getTitleInferenceMessages
 } from "./prompts";
-import {
-  Outline,
-  OutlineSection,
-  ReadyToGeneratePage,
-  WizardState
-} from "./types";
+import { Outline, OutlineSection, ReadyToGeneratePage, WizardState } from "./types";
 import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
@@ -52,9 +47,7 @@ async function runWizard() {
     fs.writeFileSync(wizardStatePath, JSON.stringify(state, null, 2));
   }
 
-  const wizardState: WizardState = fs.existsSync(wizardStatePath)
-    ? JSON.parse(fs.readFileSync(wizardStatePath, "utf-8"))
-    : {};
+  const wizardState: WizardState = fs.existsSync(wizardStatePath) ? JSON.parse(fs.readFileSync(wizardStatePath, "utf-8")) : {};
 
   // prettier-ignore
   console.log(
@@ -74,9 +67,7 @@ async function runWizard() {
     });
 
     if (!wizardState.gotDirectoryPermission) {
-      console.log(
-        "No problem! Start me again in a clean directory. Bye for now!"
-      );
+      console.log("No problem! Start me again in a clean directory. Bye for now!");
       return;
     }
   }
@@ -86,8 +77,7 @@ async function runWizard() {
   // Ask for AI model to use
 
   wizardState.smarterModel = await select({
-    message:
-      "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
+    message: "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
     choices: [
       ...CLAUDE_MODELS.map((model) => ({
         name: model.name,
@@ -104,8 +94,7 @@ async function runWizard() {
   // Ask to stream output to console
 
   wizardState.streamToConsole = await confirm({
-    message:
-      "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
+    message: "Do you want to stream outputs to console? \n Looks awesome but clutters things up:",
     default: wizardState.streamToConsole || false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -117,44 +106,157 @@ async function runWizard() {
 
   const fileName = await input({
     message:
-      "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
-    default: wizardState.primarySourceFilename || undefined,
+      "What's your primary source? \n Drag a folder or text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
+    default: wizardState.primarySourceAccessName || undefined,
     validate: async (filename) => {
-      if(filename?.trim()) {
-        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+      if (filename?.trim()) {
+        if (
+          (filename === wizardState.primarySourceAccessName ||
+            wizardState.primarySourceAccessName === parsePlatformIndependentPath(filename)) &&
+          wizardState.loadedPrimarySource
+        )
+          return true; // return true if we've already loaded the file and it's the same
         if (filename.includes("youtube.com")) {
           try {
             const transcript = await YoutubeTranscript.fetchTranscript(filename);
             wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
-            wizardState.primarySourceFilename = filename;
-          } catch(err) {
+            wizardState.primarySourceAccessName = filename;
+            wizardState.primarySourceType = "youtube";
+          } catch (err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
-        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
-          return `File not found - tried to load ${filename}. Try again.`;
         } else {
-          try {
-            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
-            wizardState.loadedPrimarySource = dataFromFile;
-            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
-          } catch(err) {
-            return `Couldn't read file - tried to load ${filename}. Try again.`;
+          const parsed_filename = parsePlatformIndependentPath(filename);
+          if (!fs.existsSync(parsed_filename)) return `File or folder not found - tried to load ${filename}. Try again.`;
+
+          const file_stats = fs.lstatSync(parsed_filename);
+          if (file_stats.isFile()) {
+            if (!checkFileIsReadable(parsed_filename)) {
+              return `File type not supported - tried to load ${filename}. Try again.`;
+            } else {
+              try {
+                const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+                wizardState.loadedPrimarySource = dataFromFile;
+                wizardState.primarySourceAccessName = parsePlatformIndependentPath(filename);
+                wizardState.primarySourceType = "file";
+              } catch (err) {
+                return `Couldn't read file - tried to load ${filename}. Try again.`;
+              }
+            }
+          } else if (file_stats.isDirectory()) {
+            wizardState.primarySourceAccessName = parsed_filename;
+            wizardState.primarySourceType = "folder";
+          } else if (!file_stats.isDirectory() && !file_stats.isFile()) {
+            return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
           }
         }
       }
-      return true;
+      return true;  // do we need to include this? I think 
     }
   });
-
   saveState(wizardState);
 
-  if(!wizardState.loadedPrimarySource) {
+
+  // ________________________________________FOLDER MANAGEMENT SECTION____________________________________
+
+  if (wizardState.primarySourceAccessName && wizardState.primarySourceType === "folder") {
+    const parsed_filename = parsePlatformIndependentPath(wizardState.primarySourceAccessName);
+    let fileTree: dirTree.DirectoryTree | "timeoutFailed" = await getFileTree(parsed_filename);
+
+    if (!fileTree || fileTree === "timeoutFailed") {
+      console.log("\nThe file tree is too large to process in a reasonable time. Exiting.");
+      return; // Return if the timeout is reached
+    }
+
+    let completedTreeWork: { result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree } | "timeoutFailed" =
+      await removeExcludedFilesAndAddTokenCount(fileTree);
+
+    if (!completedTreeWork || completedTreeWork === "timeoutFailed" || !fileTree.children) {
+      console.log(
+        completedTreeWork && completedTreeWork !== "timeoutFailed"
+          ? "\nNo files found in directory. Try again."
+          : "\nThe file tree is too large to process in a reasonable time."
+      );
+      return;
+    }
+
+    fileTree = completedTreeWork.tree;
+    let first_time = true;
+    let selectedFiles: string[] = [];
+    let file_choices: { name: string; value: string; checked: boolean }[] | "timeoutFailed" = await flattenFileTreeForCheckbox(fileTree);
+
+    if (!file_choices || file_choices === "timeoutFailed") {
+      console.log("\nThe file tree is too large to process in a reasonable time. Exiting.");
+      return; // Return if the timeout is reached
+    }
+
+    let promptTokens = getAdditionalPromptTokens(file_choices);
+
+    // Loop until the files selected are within the token limit
+    while (first_time || completedTreeWork.tokenTotal + promptTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+      if (!first_time) {
+        console.log("\nYou've selected too many tokens. Please deselect files to exclude.");
+      }
+      first_time = false;
+
+      console.log("before checkbox await");
+
+      selectedFiles = await checkbox({
+        pageSize: 8,
+        loop: false,
+        message: `The token limit is ${CLAUDE_PRIMARYSOURCE_BUDGET.toLocaleString()}. 
+Your current file token count is ${completedTreeWork.tokenTotal.toLocaleString()}, with ${promptTokens.toLocaleString()} for the prompt, for a total of ${(
+            completedTreeWork.tokenTotal + promptTokens
+          ).toLocaleString()}.
+Please deselect files to exclude.
+Note: If you deselect a folder, all files within it will be excluded.
+Note: Some files do not appear as we don't believe we can read them.`,
+        choices: file_choices,
+        theme: { style: { renderSelectedChoices: () => { } } }
+      });
+
+      console.log("after checkbox await");
+
+      completedTreeWork = await removeDeselectedItems(fileTree, selectedFiles);
+      if (!completedTreeWork || completedTreeWork === "timeoutFailed" || !fileTree.children) {
+        console.log(
+          completedTreeWork && completedTreeWork !== "timeoutFailed"
+            ? "No files found in directory. Try again."
+            : "The file tree is too large to process in a reasonable time."
+        );
+        return;
+      }
+      fileTree = completedTreeWork.tree;
+      file_choices = await flattenFileTreeForCheckbox(fileTree);
+      if (!file_choices || file_choices === "timeoutFailed") {
+        console.log("The file tree is too large to process in a reasonable time. Exiting.");
+        return; // Return if the timeout is reached
+      }
+      promptTokens = getAdditionalPromptTokens(file_choices);
+    }
+
+    const confirmFiles = await confirm({
+      message: `${file_choices.map((val) => val.name).join("\n")}\nHere is your list of files. Confirm?`,
+      default: wizardState.streamToConsole || false,
+      transformer: (answer) => (answer ? "👍" : "👎")
+    });
+
+    if (!confirmFiles) {
+      console.log("\nNo problem! You can run me again to adjust the source.");
+      return;
+    }
+
+    // TODO: Is this the  best way to handle this?
+    wizardState.loadedPrimarySource = combineFilesToString(file_choices);
+    saveState(wizardState);
+
+    console.log("Your source has a token count of:", countTokens(wizardState.loadedPrimarySource));
+  }
+
+  if (!wizardState.loadedPrimarySource) {
     const editorName = await select({
-      message:
-        "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
-      choices: EDITORS.filter((editor) =>
-        isCommandAvailable(editor.command)
-      ).map((editor) => ({
+      message: "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
+      choices: EDITORS.filter((editor) => isCommandAvailable(editor.command)).map((editor) => ({
         name: editor.name,
         value: editor.command
       })),
@@ -174,6 +276,7 @@ async function runWizard() {
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
+    wizardState.primarySourceType = "freetext";
   }
 
   saveState(wizardState);
@@ -182,9 +285,8 @@ async function runWizard() {
 
   if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
-      message: `Your content looks a little too large by about ${
-        primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
-      } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
+      message: `Your content looks a little too large by about ${primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
+        } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
@@ -199,8 +301,7 @@ async function runWizard() {
 
   wizardState.anthropicKey =
     (await password({
-      message:
-        "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
+      message: "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
       mask: "*",
       validate: async (key) => {
         const testResponse = await runClaudeInference(
@@ -219,9 +320,7 @@ async function runWizard() {
 
   // Ask for source description
 
-  const descriptionInferenceMessages = getDescriptionInferenceMessages(
-    wizardState.loadedPrimarySource
-  );
+  const descriptionInferenceMessages = getDescriptionInferenceMessages(wizardState.loadedPrimarySource);
 
   const description = await input({
     message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getClaudeCosts(
@@ -245,9 +344,7 @@ async function runWizard() {
     );
 
     if (generatedDescription.success) {
-      console.log(
-        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
-      );
+      console.log(`Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`);
 
       wizardState.description = generatedDescription.response;
     } else {
@@ -261,13 +358,9 @@ async function runWizard() {
 
   saveState(wizardState);
 
-  if (!wizardState.description?.trim())
-    throw new Error("Can't continue without a description!");
+  if (!wizardState.description?.trim()) throw new Error("Can't continue without a description!");
 
-  const titleInferenceMessages = getTitleInferenceMessages(
-    wizardState.loadedPrimarySource,
-    wizardState.description
-  );
+  const titleInferenceMessages = getTitleInferenceMessages(wizardState.loadedPrimarySource, wizardState.description);
 
   // Ask for title
 
@@ -301,17 +394,10 @@ async function runWizard() {
             name: title,
             value: title
           }))
-          .concat([
-            new Separator(),
-            { name: "Enter a new one", value: "__new__" },
-            new Separator()
-          ])
+          .concat([new Separator(), { name: "Enter a new one", value: "__new__" }, new Separator()])
       });
 
-      wizardState.title =
-        selectedAnswer === "__new__"
-          ? await input({ message: "Enter a new title: " })
-          : selectedAnswer;
+      wizardState.title = selectedAnswer === "__new__" ? await input({ message: "Enter a new title: " }) : selectedAnswer;
     } else {
       wizardState.title = await input({
         message: `Couldn't generate. Please type one in? `,
@@ -325,12 +411,10 @@ async function runWizard() {
 
   // Ask for favicon URL
 
-  const urlPattern =
-    /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+  const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
   wizardState.faviconUrl = await input({
     message: "Choose your own favicon! \nPlease provide a URL only.",
-    default:
-      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+    default: "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
@@ -346,9 +430,7 @@ async function runWizard() {
 
   // Ask for theme/keywords
 
-  const themesInferenceMessages = getThemeInferenceMessages(
-    wizardState.loadedPrimarySource
-  );
+  const themesInferenceMessages = getThemeInferenceMessages(wizardState.loadedPrimarySource);
 
   const themesFromUser = await input({
     message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getClaudeCosts(
@@ -386,11 +468,7 @@ async function runWizard() {
         message: "Enter any more (leave empty for none): "
       });
 
-      wizardState.coreThemes = (
-        selectedThemes.join(", ") +
-        " " +
-        newThemesFromUser
-      ).trim();
+      wizardState.coreThemes = (selectedThemes.join(", ") + " " + newThemesFromUser).trim();
     } else {
       wizardState.coreThemes = await input({
         message: `Couldn't generate. Please type some in? `,
@@ -404,10 +482,7 @@ async function runWizard() {
 
   // Ask for Audience
 
-  const audienceInferenceMessages = getAudienceInferenceMessages(
-    wizardState.loadedPrimarySource,
-    wizardState.description
-  );
+  const audienceInferenceMessages = getAudienceInferenceMessages(wizardState.loadedPrimarySource, wizardState.description);
 
   const audienceFromUser = await input({
     message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getClaudeCosts(
@@ -415,9 +490,7 @@ async function runWizard() {
       400,
       wizardState.smarterModel
     ).toFixed(4)}): `,
-    default:
-      (wizardState.intendedAudience && wizardState.intendedAudience) ||
-      undefined
+    default: (wizardState.intendedAudience && wizardState.intendedAudience) || undefined
   });
 
   if (audienceFromUser.trim()) {
@@ -447,17 +520,12 @@ async function runWizard() {
         message: "Enter any more (leave empty for none): "
       });
 
-      wizardState.intendedAudience = (
-        selectedAudience.join(", ") +
-        " " +
-        newAudienceFromUser
-      ).trim();
+      wizardState.intendedAudience = (selectedAudience.join(", ") + " " + newAudienceFromUser).trim();
     } else {
       wizardState.intendedAudience = await input({
         message: `Couldn't generate. Please type some keywords in? `,
         default: wizardState.intendedAudience,
-        validate: (input) =>
-          !!input.trim() || "Please enter some words describing the audience."
+        validate: (input) => !!input.trim() || "Please enter some words describing the audience."
       });
     }
   }
@@ -466,20 +534,15 @@ async function runWizard() {
 
   // AI asks questions back
 
-  const questionsMessages = getQuestionsInferenceMessages(
-    wizardState.loadedPrimarySource,
-    wizardState.description,
-    wizardState.ambiguityExplained
-  );
+  const questionsMessages = getQuestionsInferenceMessages(wizardState.loadedPrimarySource, wizardState.description, wizardState.ambiguityExplained);
 
   const questionPermission = await confirm({
-    message: `Are you okay ${
-      wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
-      questionsMessages,
-      2048,
-      wizardState.smarterModel
-    ).toFixed(4)}): `,
+    message: `Are you okay ${wizardState.ambiguityExplained ? "re" : ""
+      }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+        questionsMessages,
+        2048,
+        wizardState.smarterModel
+      ).toFixed(4)}): `,
     default: false,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
@@ -498,11 +561,8 @@ async function runWizard() {
     if (questionsResponse.success) {
       if (!wizardState.preferredEditor) {
         const editorName = await select({
-          message:
-            "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
-          choices: EDITORS.filter((editor) =>
-            isCommandAvailable(editor.command)
-          ).map((editor) => ({
+          message: "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
+          choices: EDITORS.filter((editor) => isCommandAvailable(editor.command)).map((editor) => ({
             name: editor.name,
             value: editor.command
           })),
@@ -518,15 +578,11 @@ async function runWizard() {
         message: `Opening ${process.env.EDITOR} to answer:`,
         waitForUseInput: false,
         default: `Here are some questions: \n${questionsResponse.response
-          .map(
-            (question: string, index: number) =>
-              `${index + 1}. ${question}\n\nAnswer: \n\n`
-          )
+          .map((question: string, index: number) => `${index + 1}. ${question}\n\nAnswer: \n\n`)
           .join("\n")}`
       });
 
-      wizardState.ambiguityExplained =
-        (wizardState.ambiguityExplained || "") + dataFromEditor;
+      wizardState.ambiguityExplained = (wizardState.ambiguityExplained || "") + dataFromEditor;
     } else {
       console.log("\n\nCould not generate. Lets skip this for now.");
     }
@@ -537,33 +593,20 @@ async function runWizard() {
   // Ask for writing style
 
   const writingExampleFilename = await input({
-    message:
-      "Do you have an example of writing style you want to add in (adds cost but improves output, \nleave blank to skip. Drag in a file): ",
+    message: "Do you have an example of writing style you want to add in (adds cost but improves output, \nleave blank to skip. Drag in a file): ",
     default: wizardState.writingExampleFilename || undefined,
     validate: (filename) => {
-      if (
-        filename?.trim() &&
-        !fs.existsSync(parsePlatformIndependentPath(filename))
-      )
-        return `File not found - tried to load ${filename}. Try again.`;
+      if (filename?.trim() && !fs.existsSync(parsePlatformIndependentPath(filename))) return `File not found - tried to load ${filename}. Try again.`;
       return true;
     }
   });
 
   if (writingExampleFilename.trim()) {
-    wizardState.writingExampleFilename = parsePlatformIndependentPath(
-      writingExampleFilename
-    );
+    wizardState.writingExampleFilename = parsePlatformIndependentPath(writingExampleFilename);
 
-    const dataFromFile = fs.readFileSync(
-      wizardState.writingExampleFilename,
-      "utf-8"
-    );
+    const dataFromFile = fs.readFileSync(wizardState.writingExampleFilename, "utf-8");
 
-    wizardState.writingExample = dataFromFile.substring(
-      0,
-      WRITING_STYLE_SIZE_LIMIT
-    );
+    wizardState.writingExample = dataFromFile.substring(0, WRITING_STYLE_SIZE_LIMIT);
   }
 
   saveState(wizardState);
@@ -580,25 +623,19 @@ async function runWizard() {
     wizardState.writingExample
   );
 
-  const previousOutlineInvalidated =
-    wizardState.outlinePrimaryPrompt &&
-    wizardState.outlinePrimaryPrompt !== outlineQuestions[0].content;
+  const previousOutlineInvalidated = wizardState.outlinePrimaryPrompt && wizardState.outlinePrimaryPrompt !== outlineQuestions[0].content;
 
   if (!wizardState.generatedOutline || previousOutlineInvalidated) {
     const confirmOutline = await confirm({
-      message: `We're about to generate the outline (Costs $${getClaudeCosts(
-        outlineQuestions,
-        4096,
-        wizardState.smarterModel
-      ).toFixed(4)}). Confirm: `,
+      message: `We're about to generate the outline (Costs $${getClaudeCosts(outlineQuestions, 4096, wizardState.smarterModel).toFixed(
+        4
+      )}). Confirm: `,
       default: true,
       transformer: (answer) => (answer ? "👍" : "👎")
     });
 
     if (!confirmOutline) {
-      console.log(
-        "No problem! You can run me again to generate the outline later."
-      );
+      console.log("No problem! You can run me again to generate the outline later.");
       return;
     }
 
@@ -618,25 +655,18 @@ async function runWizard() {
     if (outlineResponse.success) {
       wizardState.generatedOutline = outlineResponse.response;
     } else {
-      console.log(
-        "Couldn't generate the outline. You can run me again to retry."
-      );
+      console.log("Couldn't generate the outline. You can run me again to retry.");
       return;
     }
   }
 
   saveState(wizardState);
 
-  function deleteDisabledSectionsAndClean(
-    sections: OutlineSection[]
-  ): OutlineSection[] {
+  function deleteDisabledSectionsAndClean(sections: OutlineSection[]): OutlineSection[] {
     return sections
       .filter((section) => !section.disabled)
       .map((section) => {
-        if (section.subsections)
-          section.subsections = deleteDisabledSectionsAndClean(
-            section.subsections
-          );
+        if (section.subsections) section.subsections = deleteDisabledSectionsAndClean(section.subsections);
         delete section.disabled;
         return section;
       });
@@ -669,29 +699,17 @@ async function runWizard() {
 
         const flattened = [
           {
-            name: `${"-".repeat(levels.length + 1)} ${counter}. ${
-              section.title
-            }`,
+            name: `${"-".repeat(levels.length + 1)} ${counter}. ${section.title}`,
             value: levels.concat([section.permalink]).join("->"),
             checked: !section.disabled
           }
         ];
-        if (section.subsections)
-          return flattened.concat(
-            flattenOutline(
-              section.subsections,
-              levels.concat([section.permalink]),
-              hideDisabled
-            )
-          );
+        if (section.subsections) return flattened.concat(flattenOutline(section.subsections, levels.concat([section.permalink]), hideDisabled));
         return flattened;
       });
     }
 
-    const outlineFlatList = flattenOutline(
-      wizardState.generatedOutline.sections,
-      []
-    );
+    const outlineFlatList = flattenOutline(wizardState.generatedOutline.sections, []);
 
     const selectedSections = await checkbox({
       required: true,
@@ -706,11 +724,7 @@ async function runWizard() {
 
         section.disabled = !selectedSections.includes(levelsStr);
 
-        if (section.subsections)
-          setDisabledSections(
-            section.subsections,
-            levels.concat([section.permalink])
-          );
+        if (section.subsections) setDisabledSections(section.subsections, levels.concat([section.permalink]));
       });
     }
 
@@ -718,30 +732,15 @@ async function runWizard() {
 
     saveState(wizardState);
 
-    const flatListForDisplay = flattenOutline(
-      wizardState.generatedOutline.sections,
-      [],
-      true
-    );
+    const flatListForDisplay = flattenOutline(wizardState.generatedOutline.sections, [], true);
 
     console.log("Selected outline: \n");
-    console.log(
-      flatListForDisplay.map((section) => section.name).join("\n") + "\n"
-    );
+    console.log(flatListForDisplay.map((section) => section.name).join("\n") + "\n");
 
-    const outlineCopyForImprovements = JSON.parse(
-      JSON.stringify(wizardState.generatedOutline)
-    );
-    outlineCopyForImprovements.sections = deleteDisabledSectionsAndClean(
-      outlineCopyForImprovements.sections
-    );
+    const outlineCopyForImprovements = JSON.parse(JSON.stringify(wizardState.generatedOutline));
+    outlineCopyForImprovements.sections = deleteDisabledSectionsAndClean(outlineCopyForImprovements.sections);
 
-    let regenerateOutlineInferenceMessages =
-      getOutlineRegenerationInferenceMessages(
-        outlineQuestions,
-        outlineCopyForImprovements,
-        ".".repeat(3000)
-      );
+    let regenerateOutlineInferenceMessages = getOutlineRegenerationInferenceMessages(outlineQuestions, outlineCopyForImprovements, ".".repeat(3000));
 
     if (!wizardState.outlineComments) wizardState.outlineComments = "";
 
@@ -754,17 +753,11 @@ async function runWizard() {
     });
 
     if (newSections.trim()) {
-      const tempOutlineComments =
-        wizardState.outlineComments + "\n" + newSections;
+      const tempOutlineComments = wizardState.outlineComments + "\n" + newSections;
 
       saveState(wizardState);
 
-      regenerateOutlineInferenceMessages =
-        getOutlineRegenerationInferenceMessages(
-          outlineQuestions,
-          outlineCopyForImprovements,
-          tempOutlineComments
-        );
+      regenerateOutlineInferenceMessages = getOutlineRegenerationInferenceMessages(outlineQuestions, outlineCopyForImprovements, tempOutlineComments);
 
       const newSectionsResponse = await runClaudeInference(
         regenerateOutlineInferenceMessages,
@@ -804,49 +797,27 @@ async function runWizard() {
   }
 
   wizardState.addDiagrams = await confirm({
-    message:
-      "Do you want to add diagrams, latex and flowcharts? (This works perfectly 98% of the time): ",
+    message: "Do you want to add diagrams, latex and flowcharts? (This works perfectly 98% of the time): ",
     default: wizardState.addDiagrams || true,
     transformer: (answer) => (answer ? "👍" : "👎")
   });
 
-  function getPageWritingMessages(
-    overallOutline: Outline,
-    sections: OutlineSection[],
-    addDiagrams: boolean
-  ): ReadyToGeneratePage[] {
+  function getPageWritingMessages(overallOutline: Outline, sections: OutlineSection[], addDiagrams: boolean): ReadyToGeneratePage[] {
     return sections.flatMap((section) => {
       const sectionsReadyToGenerate: ReadyToGeneratePage = {
         section,
         levels: section.permalink.split(/(?<!\\)\//g).slice(1),
-        messages: getPageGenerationInferenceMessages(
-          outlineQuestions,
-          overallOutline,
-          section,
-          addDiagrams
-        )
+        messages: getPageGenerationInferenceMessages(outlineQuestions, overallOutline, section, addDiagrams)
       };
 
-      if (section.subsections)
-        return [
-          sectionsReadyToGenerate,
-          ...getPageWritingMessages(
-            overallOutline,
-            section.subsections,
-            addDiagrams
-          )
-        ];
+      if (section.subsections) return [sectionsReadyToGenerate, ...getPageWritingMessages(overallOutline, section.subsections, addDiagrams)];
       else return [sectionsReadyToGenerate];
     });
   }
 
-  const cleanedOutline: Outline = JSON.parse(
-    JSON.stringify(wizardState.generatedOutline)
-  );
+  const cleanedOutline: Outline = JSON.parse(JSON.stringify(wizardState.generatedOutline));
 
-  cleanedOutline.sections = deleteDisabledSectionsAndClean(
-    cleanedOutline.sections
-  );
+  cleanedOutline.sections = deleteDisabledSectionsAndClean(cleanedOutline.sections);
 
   // TODO: I know this is a bad place to put this function
   // but it's like 2 am
@@ -863,16 +834,10 @@ async function runWizard() {
 
   console.log("\nCalculating final writing costs...\n");
 
-  const pageWritingMessages = getPageWritingMessages(
-    cleanedOutline,
-    cleanedOutline.sections,
-    wizardState.addDiagrams
-  );
+  const pageWritingMessages = getPageWritingMessages(cleanedOutline, cleanedOutline.sections, wizardState.addDiagrams);
 
   const costs = CLAUDE_MODELS.map((model) =>
-    pageWritingMessages
-      .map((page) => getClaudeCosts(page.messages, 4096, model.model))
-      .reduce((a, b) => a + b, 0)
+    pageWritingMessages.map((page) => getClaudeCosts(page.messages, 4096, model.model)).reduce((a, b) => a + b, 0)
   );
 
   wizardState.pageGenerationModel = await select({
@@ -881,26 +846,19 @@ async function runWizard() {
       ...CLAUDE_MODELS.map((model, index) => ({
         name: model.name,
         value: model.model,
-        description: `${model.pageDescription} (costs $${costs[index].toFixed(
-          4
-        )})`
+        description: `${model.pageDescription} (costs $${costs[index].toFixed(4)})`
       })),
       new Separator()
     ],
-    default:
-      wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
+    default: wizardState.pageGenerationModel || CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
   });
 
   saveState(wizardState);
 
   if (!wizardState.preferredRunnerForNextra) {
     wizardState.preferredRunnerForNextra = await select({
-      message:
-        "Seems we haven't set up the scaffold yet. Which runner do you prefer? Bun would be fastest if you have it.",
-      choices: RUNNERS.filter((editor) =>
-        isCommandAvailable(editor.command)
-      ).map((editor) => ({
+      message: "Seems we haven't set up the scaffold yet. Which runner do you prefer? Bun would be fastest if you have it.",
+      choices: RUNNERS.filter((editor) => isCommandAvailable(editor.command)).map((editor) => ({
         name: editor.name,
         value: editor.command
       })),
@@ -922,8 +880,7 @@ async function runWizard() {
   wizardState.overwritePages =
     (fs.existsSync(path.join(docsFolder, "pages")) &&
       (await confirm({
-        message:
-          "There seem to already be a pages folder. Should we overwrite? ",
+        message: "There seem to already be a pages folder. Should we overwrite? ",
         default: wizardState.overwritePages || false,
         transformer: (answer) => (answer ? "👍" : "👎")
       }))) ||
@@ -935,9 +892,7 @@ async function runWizard() {
     idempotentlySetupNextraDocs(
       docsFolder,
       // biome-ignore lint/style/noNonNullAssertion: TS can't detect it but due to current code path we know this won't be null
-      RUNNERS.find(
-        (runner) => runner.command === wizardState.preferredRunnerForNextra
-      )!,
+      RUNNERS.find((runner) => runner.command === wizardState.preferredRunnerForNextra)!,
       wizardState
     );
   }
@@ -953,16 +908,9 @@ async function runWizard() {
     return;
   }
 
-  console.log(
-    "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
-  );
+  console.log("\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n");
 
-  await generatePages(
-    true,
-    pageWritingMessages,
-    path.join(docsFolder, "pages"),
-    wizardState
-  );
+  await generatePages(true, pageWritingMessages, path.join(docsFolder, "pages"), wizardState);
 }
 
 runWizard();

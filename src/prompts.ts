@@ -1,10 +1,7 @@
 import type { MessageParam } from "@anthropic-ai/sdk/resources";
 import { Outline, OutlineSection } from "./types";
 
-export function getTitleInferenceMessages(
-  primarySource: string,
-  description: string
-): MessageParam[] {
+export function getTitleInferenceMessages(primarySource: string, description: string): MessageParam[] {
   return [
     // prettier-ignore
     {
@@ -24,10 +21,7 @@ Please generate up to 10 possible names for documentation we want to build, for 
   ];
 }
 
-export function getAudienceInferenceMessages(
-  primarySource: string,
-  description: string
-): MessageParam[] {
+export function getAudienceInferenceMessages(primarySource: string, description: string): MessageParam[] {
   return [
     // prettier-ignore
     {
@@ -47,9 +41,7 @@ Please generate up to 10 words describing the intended audience for creating doc
   ];
 }
 
-export function getThemeInferenceMessages(
-  primarySource: string
-): MessageParam[] {
+export function getThemeInferenceMessages(primarySource: string): MessageParam[] {
   return [
     // prettier-ignore
     {
@@ -67,9 +59,7 @@ Please generate up to 10 possible keywords referring to industries, technologies
   ];
 }
 
-export function getDescriptionInferenceMessages(
-  primarySource: string
-): MessageParam[] {
+export function getDescriptionInferenceMessages(primarySource: string): MessageParam[] {
   return [
     // prettier-ignore
     {
@@ -84,11 +74,7 @@ Please provide a three sentence description of the information in PrimarySource.
   ];
 }
 
-export function getQuestionsInferenceMessages(
-  primarySource: string,
-  description: string,
-  alreadyAnsweredQuestions?: string
-): MessageParam[] {
+export function getQuestionsInferenceMessages(primarySource: string, description: string, alreadyAnsweredQuestions?: string): MessageParam[] {
   return [
     // prettier-ignore
     {
@@ -219,14 +205,12 @@ type Outline = {
 
 const optionalWritingGuidelines = {
   diagramsAndLatex: {
-    guideline:
-      "Add mermaid diagrams in markdown (```mermaid) and latex (surrounded by $) when needed.",
+    guideline: "Add mermaid diagrams in markdown (```mermaid) and latex (surrounded by $) when needed.",
     index: 1
   },
   deeplyTechnical: {
     index: 3,
-    guideline:
-      "Only write about what is in PrimarySource, for the intended audience at their level of understanding about things they care about."
+    guideline: "Only write about what is in PrimarySource, for the intended audience at their level of understanding about things they care about."
   }
 };
 
@@ -260,14 +244,9 @@ export function getPageGenerationInferenceMessages(
 ): MessageParam[] {
   const actualWritingGuidelines = addDiagrams
     ? [
-        ...writingGuidelines.slice(
-          0,
-          optionalWritingGuidelines.diagramsAndLatex.index
-        ),
+        ...writingGuidelines.slice(0, optionalWritingGuidelines.diagramsAndLatex.index),
         optionalWritingGuidelines.diagramsAndLatex.guideline,
-        ...writingGuidelines.slice(
-          optionalWritingGuidelines.diagramsAndLatex.index
-        )
+        ...writingGuidelines.slice(optionalWritingGuidelines.diagramsAndLatex.index)
       ]
     : writingGuidelines.slice(0, -1);
 
@@ -280,16 +259,12 @@ export function getPageGenerationInferenceMessages(
     // prettier-ignore
     {
       role: "user",
-      content: `Now we're going to specifically write the section ${
-        selectedSection.title
-      } (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
+      content: `Now we're going to specifically write the section ${selectedSection.title} (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
 
 ${actualWritingGuidelines.map((g, i) => `${i + 1}. ${g}`).join("\n")}
 ${
   selectedSection.subsections
-    ? `${
-        actualWritingGuidelines.length + 1
-      }The subsections ${selectedSection.subsections
+    ? `${actualWritingGuidelines.length + 1}The subsections ${selectedSection.subsections
         .map((s) => s.title)
         .join(", ")} will be written later, and don't need to elaborated here.`
     : ""

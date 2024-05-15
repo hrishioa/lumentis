@@ -11,10 +11,7 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
     ? JSON.parse(fs.readFileSync(path.join(directory, "package.json"), "utf-8"))
     : {};
 
-  console.log(
-    "Looking for package.json in ",
-    path.join(directory, "package.json")
-  );
+  console.log("Looking for package.json in ", path.join(directory, "package.json"));
 
   packageJSON = {
     ...packageJSON,
@@ -32,10 +29,7 @@ function writeConfigFiles(directory: string, wizardState: WizardState) {
     keywords: wizardState.coreThemes?.split(",").map((kw) => kw.trim()) || []
   };
 
-  fs.writeFileSync(
-    path.join(directory, "package.json"),
-    JSON.stringify(packageJSON, null, 2)
-  );
+  fs.writeFileSync(path.join(directory, "package.json"), JSON.stringify(packageJSON, null, 2));
 
   fs.writeFileSync(
     path.join(directory, "next.config.js"),
@@ -157,11 +151,7 @@ Change things in \`pages\` to see the effect.
   }
 }
 
-export function idempotentlySetupNextraDocs(
-  directory: string,
-  runner: (typeof RUNNERS)[number],
-  wizardState: WizardState
-) {
+export function idempotentlySetupNextraDocs(directory: string, runner: (typeof RUNNERS)[number], wizardState: WizardState) {
   // TODO: This might not be working?
   if (fs.existsSync(path.join(directory, "package.json"))) {
     console.log("Looks like project directory should be set up, skipping...");
@@ -169,13 +159,10 @@ export function idempotentlySetupNextraDocs(
   }
 
   try {
-    execSync(
-      `${runner.command} ${runner.installPrefix} react react-dom next nextra nextra-theme-docs typescript @types/node`,
-      {
-        cwd: directory,
-        stdio: "inherit"
-      }
-    );
+    execSync(`${runner.command} ${runner.installPrefix} react react-dom next nextra nextra-theme-docs typescript @types/node`, {
+      cwd: directory,
+      stdio: "inherit"
+    });
   } catch (err) {
     throw new Error(`Failed to install Requirements: ${err}`);
   }
@@ -183,12 +170,7 @@ export function idempotentlySetupNextraDocs(
   writeConfigFiles(directory, wizardState);
 }
 
-export async function generatePages(
-  startNextra: boolean,
-  pages: ReadyToGeneratePage[],
-  pagesFolder: string,
-  wizardState: WizardState
-) {
+export async function generatePages(startNextra: boolean, pages: ReadyToGeneratePage[], pagesFolder: string, wizardState: WizardState) {
   if (!fs.existsSync(pagesFolder)) {
     throw new Error(`Pages folder ${pagesFolder} does not exist`);
   }
@@ -198,9 +180,7 @@ export async function generatePages(
   });
 
   if (!preferredRunner) {
-    throw new Error(
-      `Preferred runner for \`nextra\` not found: ${wizardState.preferredRunnerForNextra}`
-    );
+    throw new Error(`Preferred runner for \`nextra\` not found: ${wizardState.preferredRunnerForNextra}`);
   }
 
   if (startNextra) {
@@ -235,36 +215,25 @@ export async function generatePages(
       fs.writeFileSync(path.join(pageFolder, "_meta.json"), JSON.stringify({}));
     }
 
-    const metaJSON = JSON.parse(
-      fs.readFileSync(path.join(pageFolder, "_meta.json"), "utf-8")
-    );
+    const metaJSON = JSON.parse(fs.readFileSync(path.join(pageFolder, "_meta.json"), "utf-8"));
 
     if (!metaJSON[permalink]) {
       // TODO: Need this damn monkeypatch because Nextra doesn't
       // seem to support nested pages at the top level
       metaJSON[permalink] = page.section.title;
       if (i === 1) {
-        if (
-          pages.find(
-            (p) => p.levels.length > 1 && p.levels[0] === pages[0].levels[0]
-          )
-        ) {
+        if (pages.find((p) => p.levels.length > 1 && p.levels[0] === pages[0].levels[0])) {
           fs.writeFileSync(
             path.join(pagesFolder, "_meta.json"),
             JSON.stringify({
-              ...JSON.parse(
-                fs.readFileSync(path.join(pagesFolder, "_meta.json"), "utf-8")
-              ),
+              ...JSON.parse(fs.readFileSync(path.join(pagesFolder, "_meta.json"), "utf-8")),
               [pages[0].levels[pages[0].levels.length - 1]]: "Basics"
             })
           );
         }
       }
 
-      fs.writeFileSync(
-        path.join(pageFolder, "_meta.json"),
-        JSON.stringify(metaJSON, null, 2)
-      );
+      fs.writeFileSync(path.join(pageFolder, "_meta.json"), JSON.stringify(metaJSON, null, 2));
     }
 
     const pagePath = path.join(pageFolder, permalink + ".mdx");
@@ -274,8 +243,7 @@ export async function generatePages(
       continue;
     }
 
-    if (!wizardState.pageGenerationModel)
-      throw new Error("No page generation model set");
+    if (!wizardState.pageGenerationModel) throw new Error("No page generation model set");
 
     await runClaudeInference(
       page.messages,

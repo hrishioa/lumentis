@@ -1,4 +1,6 @@
 {
   "editor.defaultFormatter": "biomejs.biome",
-  "editor.formatOnSave": false
+  "editor.formatOnSave": true,
+  "github.gitAuthentication": false,
+  "github.gitProtocol": "https"
 }
