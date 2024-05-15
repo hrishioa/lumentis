@@ -267,6 +267,7 @@ export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
         permalink: "format-response-message",
         singleSentenceDescription:
           "Information on the formatResponseMessage utility function and its purpose.",
+          keythingsToCover: ["something", "something else"],
         disabled: false
       }
     ]
