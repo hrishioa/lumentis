@@ -128,6 +128,7 @@ async function callOpenAI(
     maxOutputTokens,
     streamToConsole,
     saveToFilepath,
+    apiKey,
     prefix,
     systemPrompt,
     jsonType
@@ -144,7 +145,7 @@ async function callOpenAI(
   }
 
 
-  const openai = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] });
+  const openai = apiKey ? new OpenAI({ apiKey }) : new OpenAI();
 
   const completion = await openai.chat.completions.create({
     messages,
