@@ -209,7 +209,7 @@ function runWorker(workerPath: string, data: string | dirTree.DirectoryTree | { 
 }
 
 export async function getFileTree(filepath: string): Promise<dirTree.DirectoryTree | "timeoutFailed"> {
-  const { worker, promise } = runWorker(path.join(__dirname, "worker-dirtree.js"), filepath);
+  const { worker, promise } = runWorker(path.join(__dirname, "folder-importing", "worker-dirtree.js"), filepath);
   const timeout = createTimeoutPromise(5000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -223,7 +223,7 @@ export async function getFileTree(filepath: string): Promise<dirTree.DirectoryTr
 export async function removeExcludedFilesAndAddTokenCount(
   tree: dirTree.DirectoryTree
 ): Promise<{ result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree } | "timeoutFailed"> {
-  const { worker, promise } = runWorker(path.join(__dirname, "worker-clean-dirtree.js"), tree);
+  const { worker, promise } = runWorker(path.join(__dirname, "folder-importing", "worker-clean-dirtree.js"), tree);
   const timeout = createTimeoutPromise(3000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -239,7 +239,7 @@ export async function removeExcludedFilesAndAddTokenCount(
 }
 
 export async function flattenFileTreeForCheckbox(fileTree: dirTree.DirectoryTree): Promise<CheckboxInput[] | "timeoutFailed"> {
-  const { worker, promise } = runWorker(path.join(__dirname, "worker-flatten-tree-for-checkbox.js"), fileTree);
+  const { worker, promise } = runWorker(path.join(__dirname, "folder-importing", "worker-flatten-tree-for-checkbox.js"), fileTree);
   const timeout = createTimeoutPromise(2000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
@@ -254,7 +254,7 @@ export async function removeDeselectedItems(
   tree: dirTree.DirectoryTree,
   user_selection: string[]
 ): Promise<{ result: boolean; tokenTotal: number; tree: dirTree.DirectoryTree } | "timeoutFailed"> {
-  const { worker, promise } = runWorker(path.join(__dirname, "worker-remove-deselected.js"), { tree, user_selection });
+  const { worker, promise } = runWorker(path.join(__dirname, "folder-importing", "worker-remove-deselected.js"), { tree, user_selection });
   const timeout = createTimeoutPromise(2000);
   const result = await Promise.race([promise, timeout]);
   worker.terminate();
