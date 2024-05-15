@@ -28,7 +28,7 @@
     "enabled": true,
     "indentWidth": 2,
     "indentStyle": "space",
-    "lineWidth": 150
+    "lineWidth": 80
   },
   "javascript": {
     "formatter": {

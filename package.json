@@ -11,11 +11,6 @@
     "cross-spawn": "^7.0.3",
     "directory-tree": "^3.5.1",
     "mime-types": "^2.1.35",
-    "next": "^14.1.4",
-    "nextra": "^2.13.4",
-    "nextra-theme-docs": "^2.13.4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "worker-threads": "^1.0.0",
     "typescript": "^5.4.3",
     "youtube-transcript": "^1.1.0"
@@ -37,7 +32,9 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"

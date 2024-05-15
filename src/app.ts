@@ -107,12 +107,12 @@ async function runWizard() {
   const fileName = await input({
     message:
       "What's your primary source? \n Drag a folder or text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
-    default: wizardState.primarySourceFileOrFolderName || undefined,
+    default: wizardState.primarySourceAccessName || undefined,
     validate: async (filename) => {
       if (filename?.trim()) {
         if (
-          (filename === wizardState.primarySourceFileOrFolderName ||
-            wizardState.primarySourceFileOrFolderName === parsePlatformIndependentPath(filename)) &&
+          (filename === wizardState.primarySourceAccessName ||
+            wizardState.primarySourceAccessName === parsePlatformIndependentPath(filename)) &&
           wizardState.loadedPrimarySource
         )
           return true; // return true if we've already loaded the file and it's the same
@@ -120,13 +120,14 @@ async function runWizard() {
           try {
             const transcript = await YoutubeTranscript.fetchTranscript(filename);
             wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
-            wizardState.primarySourceFileOrFolderName = filename;
+            wizardState.primarySourceAccessName = filename;
+            wizardState.primarySourceType = "youtube";
           } catch (err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
         } else {
           const parsed_filename = parsePlatformIndependentPath(filename);
-          if (!fs.existsSync(parsed_filename)) return `File not found - tried to load ${filename}. Try again.`;
+          if (!fs.existsSync(parsed_filename)) return `File or folder not found - tried to load ${filename}. Try again.`;
 
           const file_stats = fs.lstatSync(parsed_filename);
           if (file_stats.isFile()) {
@@ -136,13 +137,15 @@ async function runWizard() {
               try {
                 const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
                 wizardState.loadedPrimarySource = dataFromFile;
-                wizardState.primarySourceFileOrFolderName = parsePlatformIndependentPath(filename);
+                wizardState.primarySourceAccessName = parsePlatformIndependentPath(filename);
+                wizardState.primarySourceType = "file";
               } catch (err) {
                 return `Couldn't read file - tried to load ${filename}. Try again.`;
               }
             }
           } else if (file_stats.isDirectory()) {
-            wizardState.primarySourceFileOrFolderName = parsed_filename;
+            wizardState.primarySourceAccessName = parsed_filename;
+            wizardState.primarySourceType = "folder";
           } else if (!file_stats.isDirectory() && !file_stats.isFile()) {
             return `Doesn't seem to be a file or a directory - tried to load ${filename}. Try again.`;
           }
@@ -156,8 +159,8 @@ async function runWizard() {
 
   // ________________________________________FOLDER MANAGEMENT SECTION____________________________________
 
-  if (wizardState.primarySourceFileOrFolderName && fs.lstatSync(wizardState.primarySourceFileOrFolderName).isDirectory()) {
-    const parsed_filename = parsePlatformIndependentPath(wizardState.primarySourceFileOrFolderName);
+  if (wizardState.primarySourceAccessName && wizardState.primarySourceType === "folder") {
+    const parsed_filename = parsePlatformIndependentPath(wizardState.primarySourceAccessName);
     let fileTree: dirTree.DirectoryTree | "timeoutFailed" = await getFileTree(parsed_filename);
 
     if (!fileTree || fileTree === "timeoutFailed") {
@@ -273,6 +276,7 @@ Note: Some files do not appear as we don't believe we can read them.`,
     });
 
     wizardState.loadedPrimarySource = dataFromEditor;
+    wizardState.primarySourceType = "freetext";
   }
 
   saveState(wizardState);

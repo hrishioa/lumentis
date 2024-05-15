@@ -32,6 +32,7 @@ export type WizardState = Partial<{
   smarterModel: string;
   streamToConsole: boolean;
   primarySourceFileOrFolderName: string;
+  primarySourceTyle: 'youtube' | 'file' | 'folder' | 'freetext';
   loadedPrimarySource: string;
   anthropicKey: string;
   description: string;
