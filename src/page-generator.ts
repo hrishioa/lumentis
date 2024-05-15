@@ -2,9 +2,9 @@ import { exec, execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { runClaudeInference } from "./ai";
+import { callLLM } from "./ai";
 import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
-import { ReadyToGeneratePage, WizardState } from "./types";
+import { AICallerOptions, ReadyToGeneratePage, WizardState } from "./types";
 
 function writeConfigFiles(directory: string, wizardState: WizardState) {
   let packageJSON = fs.existsSync(path.join(directory, "package.json"))
@@ -277,16 +277,22 @@ export async function generatePages(
     if (!wizardState.pageGenerationModel)
       throw new Error("No page generation model set");
 
-    await runClaudeInference(
+    const llmOptions : AICallerOptions = {
+      provider: 'anthropic',
+      model: wizardState.pageGenerationModel,
+      maxOutputTokens: 4096,
+      apiKey: wizardState.anthropicKey,
+      streamToConsole: wizardState.streamToConsole,
+      // systemPrompt?: string,
+      saveName: `${page.levels.join(".")}.mdx`,
+      saveToFilepath: pagePath,
+      prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`,
+
+    }
+
+    await callLLM(
       page.messages,
-      wizardState.pageGenerationModel,
-      4096,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      `${page.levels.join(".")}.mdx`,
-      undefined,
-      pagePath,
-      `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
+      llmOptions
     );
   }
 

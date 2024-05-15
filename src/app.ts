@@ -16,7 +16,7 @@ import {
 import {
   CLAUDE_PRIMARYSOURCE_BUDGET,
   getClaudeCosts,
-  runClaudeInference
+  callLLM
 } from "./ai";
 import {
   CLAUDE_MODELS,
@@ -39,6 +39,7 @@ import {
   getTitleInferenceMessages
 } from "./prompts";
 import {
+  AICallerOptions,
   Outline,
   OutlineSection,
   ReadyToGeneratePage,
@@ -203,11 +204,14 @@ async function runWizard() {
         "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
       mask: "*",
       validate: async (key) => {
-        const testResponse = await runClaudeInference(
+        const testResponse = await callLLM(
           [{ role: "user", content: "What is your name?" }],
-          CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
-          10,
-          key || undefined
+          {
+            provider: 'anthropic',
+            model: CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
+            maxOutputTokens: 10,
+            apiKey: key || undefined
+          }
         );
 
         if (testResponse.success) return true;
@@ -218,6 +222,14 @@ async function runWizard() {
     })) || undefined;
 
   // Ask for source description
+
+  const baseOptions : AICallerOptions = {
+    provider: 'anthropic',
+    model: wizardState.smarterModel,
+    maxOutputTokens: 700,
+    apiKey: wizardState.anthropicKey,
+    streamToConsole: wizardState.streamToConsole,
+  }
 
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
     wizardState.loadedPrimarySource
@@ -235,21 +247,17 @@ async function runWizard() {
   if (description.trim()) {
     wizardState.description = description;
   } else {
-    const generatedDescription = await runClaudeInference(
+    const generatedDescription = await callLLM(
       descriptionInferenceMessages,
-      wizardState.smarterModel,
-      700,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "description"
+      {...baseOptions, saveName: "description"}
     );
 
     if (generatedDescription.success) {
       console.log(
-        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
+        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.message}\n\n`
       );
 
-      wizardState.description = generatedDescription.response;
+      wizardState.description = generatedDescription.message;
     } else {
       wizardState.description = await input({
         message: `Couldn't generate. Please type one in? `,
@@ -283,21 +291,17 @@ async function runWizard() {
   if (title.trim()) {
     wizardState.title = title;
   } else {
-    const titleOptionsResponse = await runClaudeInference(
+    // note: changed maxtokens from 800 to 700, don't think the title needs more than the description
+    const titleOptionsResponse = await callLLM(
       titleInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "title",
-      "started_array"
+      { ...baseOptions, saveName: "title", jsonType: "started_array" }
     );
 
     if (titleOptionsResponse.success) {
+      const titleOptions : any = titleOptionsResponse.message // I don't understand why this has to be type 'any' but it does
       const selectedAnswer: string = await select({
         message: "Pick your favorite or enter a new one: ",
-        choices: titleOptionsResponse.response
-          .map((title: string) => ({
+        choices: titleOptions.map((title: string) => ({
             name: title,
             value: title
           }))
@@ -362,20 +366,15 @@ async function runWizard() {
   if (themesFromUser.trim()) {
     wizardState.coreThemes = themesFromUser.trim();
   } else {
-    const themesOptionsResponse = await runClaudeInference(
+    const themesOptionsResponse = await callLLM(
       themesInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "themes",
-      "started_array"
+      { ...baseOptions, saveName: "themes", jsonType: "started_array" }
     );
 
     if (themesOptionsResponse.success) {
       const selectedThemes = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: themesOptionsResponse.response.map((theme: string) => ({
+        choices: themesOptionsResponse.message.map((theme: string) => ({
           name: theme,
           value: theme,
           checked: true
@@ -423,20 +422,15 @@ async function runWizard() {
   if (audienceFromUser.trim()) {
     wizardState.intendedAudience = audienceFromUser.trim();
   } else {
-    const audienceOptionsResponse = await runClaudeInference(
+    const audienceOptionsResponse = await callLLM(
       audienceInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "audience",
-      "started_array"
+      { ...baseOptions, saveName: "audience", jsonType: "started_array" }
     );
 
     if (audienceOptionsResponse.success) {
       const selectedAudience: string[] = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: audienceOptionsResponse.response.map((audience: string) => ({
+        choices: audienceOptionsResponse.message.map((audience: string) => ({
           name: audience,
           value: audience,
           checked: true
@@ -485,14 +479,9 @@ async function runWizard() {
   });
 
   if (questionPermission) {
-    const questionsResponse = await runClaudeInference(
+    const questionsResponse = await callLLM(
       questionsMessages,
-      wizardState.smarterModel,
-      2048,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "questions",
-      "started_array"
+      { ...baseOptions, saveName: "questions", jsonType: "started_array", maxOutputTokens: 2048 } // overwrites maxOutputTokens
     );
 
     if (questionsResponse.success) {
@@ -517,7 +506,7 @@ async function runWizard() {
       const dataFromEditor = await editor({
         message: `Opening ${process.env.EDITOR} to answer:`,
         waitForUseInput: false,
-        default: `Here are some questions: \n${questionsResponse.response
+        default: `Here are some questions: \n${questionsResponse.message
           .map(
             (question: string, index: number) =>
               `${index + 1}. ${question}\n\nAnswer: \n\n`
@@ -602,21 +591,19 @@ async function runWizard() {
       return;
     }
 
-    const outlineResponse = await runClaudeInference(
+    const outlineResponse = await callLLM(
       outlineQuestions,
-      wizardState.smarterModel,
-      4096,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "outline",
-      "started_object",
-      undefined,
-      undefined,
-      true
+      { 
+        ...baseOptions, 
+        saveName: "outline", 
+        jsonType: "started_object", 
+        maxOutputTokens: 4096,
+        continueOnPartialJSON: true 
+      }
     );
 
     if (outlineResponse.success) {
-      wizardState.generatedOutline = outlineResponse.response;
+      wizardState.generatedOutline = outlineResponse.message;
     } else {
       console.log(
         "Couldn't generate the outline. You can run me again to retry."
@@ -766,23 +753,21 @@ async function runWizard() {
           tempOutlineComments
         );
 
-      const newSectionsResponse = await runClaudeInference(
+      const newSectionsResponse = await callLLM(
         regenerateOutlineInferenceMessages,
-        wizardState.smarterModel,
-        4096,
-        wizardState.anthropicKey,
-        wizardState.streamToConsole,
-        "regenerateOutline",
-        "started_object",
-        undefined,
-        undefined,
-        true
+        {
+          ...baseOptions,
+          saveName: "regenerateOutline",
+          jsonType: "started_object",
+          maxOutputTokens: 4096,
+          continueOnPartialJSON: true
+        }
       );
 
       if (newSectionsResponse.success) {
         wizardState.outlineComments = tempOutlineComments;
 
-        wizardState.generatedOutline = newSectionsResponse.response;
+        wizardState.generatedOutline = newSectionsResponse.message;
 
         saveState(wizardState);
       } else {
