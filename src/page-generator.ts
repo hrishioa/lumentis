@@ -281,7 +281,7 @@ export async function generatePages(
       provider: 'anthropic',
       model: wizardState.pageGenerationModel,
       maxOutputTokens: 4096,
-      apiKey: wizardState.anthropicKey,
+      apiKey: wizardState.smarterApikey,
       streamToConsole: wizardState.streamToConsole,
       // systemPrompt?: string,
       saveName: `${page.levels.join(".")}.mdx`,

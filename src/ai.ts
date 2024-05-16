@@ -250,25 +250,6 @@ export async function callLLM(
     if (streamToConsole) process.stdout.write("\n\n");
 
     if (jsonType) {
-      if (jsonType === "parse") {
-        const matchedJSON = fullMessage.match(/```json([\s\S]*?)```/g);
-
-        if (matchedJSON) {
-          fullMessage = matchedJSON[0]
-            .replace(/```json/g, "")
-            .replace(/```/g, "")
-            .trim();
-        }
-      } else if (jsonType === "start_array") {
-        fullMessage = "[" + fullMessage;
-        fullMessage = fullMessage.split("```")[0];
-      } else if (jsonType === "start_object") {
-        fullMessage = "{" + fullMessage;
-        fullMessage = fullMessage.split("```")[0];
-      }
-    }
-
-    if (jsonType) {
       let potentialPartialJSON = fullMessage;
 
       do {

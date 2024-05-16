@@ -79,7 +79,7 @@ export type WizardState = Partial<{
   streamToConsole: boolean;
   primarySourceFilename: string;
   loadedPrimarySource: string;
-  anthropicKey: string;
+  smarterApikey: string;
   description: string;
   title: string;
   coreThemes: string;
@@ -93,6 +93,7 @@ export type WizardState = Partial<{
   outlineComments: string;
   ignorePrimarySourceSize: boolean;
   pageGenerationModel: string;
+  pageGenerationApikey: string;
   addDiagrams: boolean;
   preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
   overwritePages: boolean;

@@ -19,6 +19,7 @@ import {
   callLLM
 } from "./ai";
 import {
+  AI_MODELS_INFO,
   AI_MODELS_UI,
   EDITORS,
   LUMENTIS_FOLDER,
@@ -196,12 +197,12 @@ async function runWizard() {
     }
   }
 
-  // Ask for Anthropic key
+  // Ask for AI API key
 
-  wizardState.anthropicKey =
+  wizardState.smarterApikey =
     (await password({
       message:
-        "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
+        "Please enter your API key.\n (You can leave this blank if it's already in the ENV variable.): ",
       mask: "*",
       validate: async (key) => {
         const testResponse = await callLLM(
@@ -225,7 +226,7 @@ async function runWizard() {
   const baseOptions : AICallerOptions = {
     model: wizardState.smarterModel,
     maxOutputTokens: 700,
-    apiKey: wizardState.anthropicKey,
+    apiKey: wizardState.smarterApikey,
     streamToConsole: wizardState.streamToConsole,
   }
 
@@ -875,6 +876,34 @@ async function runWizard() {
       AI_MODELS_UI[AI_MODELS_UI.length - 1].model
   });
 
+  saveState(wizardState);
+
+  if (AI_MODELS_INFO[wizardState.pageGenerationModel].provider === AI_MODELS_INFO[wizardState.smarterModel].provider) {
+    wizardState.pageGenerationApikey = wizardState.smarterApikey;
+  } else {
+    // Ask for next key
+    wizardState.pageGenerationApikey =
+      (await password({
+        message:
+          "It looks like you want to use a different provider! We'll need a new API key for that:.\n (You can leave this blank if it's already in the ENV variable.): ",
+        mask: "*",
+        validate: async (key) => {
+          const testResponse = await callLLM(
+            [{ role: "user", content: "What is your name?" }],
+            {
+              model: AI_MODELS_UI[AI_MODELS_UI.length - 1].model,
+              maxOutputTokens: 10,
+              apiKey: key || undefined
+            }
+          );
+
+          if (testResponse.success) return true;
+
+          if (key.trim()) return `Your key didn't work. Try again?`;
+          else return `The key in your env didn't work. Try again?`;
+        }
+      })) || undefined;
+  }
   saveState(wizardState);
 
   if (!wizardState.preferredRunnerForNextra) {
