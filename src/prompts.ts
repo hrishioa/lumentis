@@ -1,10 +1,10 @@
-import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { Outline, OutlineSection } from "./types";
+// import type { MessageParam } from "@anthropic-ai/sdk/resources";
+import { Outline, OutlineSection, genericMessageParam } from "./types";
 
 export function getTitleInferenceMessages(
   primarySource: string,
   description: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -27,7 +27,7 @@ Please generate up to 10 possible names for documentation we want to build, for 
 export function getAudienceInferenceMessages(
   primarySource: string,
   description: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -49,7 +49,7 @@ Please generate up to 10 words describing the intended audience for creating doc
 
 export function getThemeInferenceMessages(
   primarySource: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -69,7 +69,7 @@ Please generate up to 10 possible keywords referring to industries, technologies
 
 export function getDescriptionInferenceMessages(
   primarySource: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -88,7 +88,7 @@ export function getQuestionsInferenceMessages(
   primarySource: string,
   description: string,
   alreadyAnsweredQuestions?: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -119,10 +119,10 @@ We want to build proper comprehensive docs for what's in PrimarySource. Can you 
 }
 
 export function getOutlineRegenerationInferenceMessages(
-  outlineGenerationMessages: MessageParam[],
+  outlineGenerationMessages: genericMessageParam[],
   selectedOutline: Outline,
   newSections: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     ...outlineGenerationMessages.slice(0, -1),
     {
@@ -151,7 +151,7 @@ export function getOutlineInferenceMessages(
   intendedAudience: string,
   ambiguityExplained?: string,
   writingExample?: string
-): MessageParam[] {
+): genericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -253,11 +253,11 @@ Contents
 ];
 
 export function getPageGenerationInferenceMessages(
-  outlineGenerationMessages: MessageParam[],
+  outlineGenerationMessages: genericMessageParam[],
   selectedOutline: Outline,
   selectedSection: OutlineSection,
   addDiagrams: boolean
-): MessageParam[] {
+): genericMessageParam[] {
   const actualWritingGuidelines = addDiagrams
     ? [
         ...writingGuidelines.slice(

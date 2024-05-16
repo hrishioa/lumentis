@@ -15,11 +15,11 @@ import {
 } from "@inquirer/prompts";
 import {
   CLAUDE_PRIMARYSOURCE_BUDGET,
-  getClaudeCosts,
+  getCallCosts,
   callLLM
 } from "./ai";
 import {
-  CLAUDE_MODELS,
+  AI_MODELS_UI,
   EDITORS,
   LUMENTIS_FOLDER,
   RUNNERS,
@@ -90,14 +90,14 @@ async function runWizard() {
     message:
       "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
     choices: [
-      ...CLAUDE_MODELS.map((model) => ({
+      ...AI_MODELS_UI.map((model) => ({
         name: model.name,
         value: model.model,
         description: model.smarterDescription
       })),
       new Separator()
     ],
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model
+    default: wizardState.smarterModel || AI_MODELS_UI[0].model
   });
 
   saveState(wizardState);
@@ -207,8 +207,7 @@ async function runWizard() {
         const testResponse = await callLLM(
           [{ role: "user", content: "What is your name?" }],
           {
-            provider: 'anthropic',
-            model: CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
+            model: AI_MODELS_UI[AI_MODELS_UI.length - 1].model,
             maxOutputTokens: 10,
             apiKey: key || undefined
           }
@@ -224,7 +223,6 @@ async function runWizard() {
   // Ask for source description
 
   const baseOptions : AICallerOptions = {
-    provider: 'anthropic',
     model: wizardState.smarterModel,
     maxOutputTokens: 700,
     apiKey: wizardState.anthropicKey,
@@ -236,7 +234,7 @@ async function runWizard() {
   );
 
   const description = await input({
-    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getCallCosts(
       descriptionInferenceMessages,
       700,
       wizardState.smarterModel
@@ -280,7 +278,7 @@ async function runWizard() {
   // Ask for title
 
   const title = await input({
-    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getCallCosts(
       titleInferenceMessages,
       400,
       wizardState.smarterModel
@@ -355,7 +353,7 @@ async function runWizard() {
   );
 
   const themesFromUser = await input({
-    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getCallCosts(
       themesInferenceMessages,
       400,
       wizardState.smarterModel
@@ -409,7 +407,7 @@ async function runWizard() {
   );
 
   const audienceFromUser = await input({
-    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getCallCosts(
       audienceInferenceMessages,
       400,
       wizardState.smarterModel
@@ -469,7 +467,7 @@ async function runWizard() {
   const questionPermission = await confirm({
     message: `Are you okay ${
       wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getCallCosts(
       questionsMessages,
       2048,
       wizardState.smarterModel
@@ -575,7 +573,7 @@ async function runWizard() {
 
   if (!wizardState.generatedOutline || previousOutlineInvalidated) {
     const confirmOutline = await confirm({
-      message: `We're about to generate the outline (Costs $${getClaudeCosts(
+      message: `We're about to generate the outline (Costs $${getCallCosts(
         outlineQuestions,
         4096,
         wizardState.smarterModel
@@ -733,7 +731,7 @@ async function runWizard() {
     if (!wizardState.outlineComments) wizardState.outlineComments = "";
 
     const newSections = await input({
-      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getClaudeCosts(
+      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getCallCosts(
         regenerateOutlineInferenceMessages,
         4096,
         wizardState.smarterModel
@@ -854,16 +852,16 @@ async function runWizard() {
     wizardState.addDiagrams
   );
 
-  const costs = CLAUDE_MODELS.map((model) =>
+  const costs = AI_MODELS_UI.map((model) =>
     pageWritingMessages
-      .map((page) => getClaudeCosts(page.messages, 4096, model.model))
+      .map((page) => getCallCosts(page.messages, 4096, model.model))
       .reduce((a, b) => a + b, 0)
   );
 
   wizardState.pageGenerationModel = await select({
     message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
     choices: [
-      ...CLAUDE_MODELS.map((model, index) => ({
+      ...AI_MODELS_UI.map((model, index) => ({
         name: model.name,
         value: model.model,
         description: `${model.pageDescription} (costs $${costs[index].toFixed(
@@ -874,7 +872,7 @@ async function runWizard() {
     ],
     default:
       wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
+      AI_MODELS_UI[AI_MODELS_UI.length - 1].model
   });
 
   saveState(wizardState);

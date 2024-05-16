@@ -1,11 +1,10 @@
-import type { MessageParam } from "@anthropic-ai/sdk/resources";
 import { RUNNERS } from "./constants";
 
 
 // ________________________  AI TYPES  ________________________
 
 export type AICallerOptions = {
-  provider: 'anthropic' | 'openai',
+  // provider: 'anthropic' | 'openai',
   model: string,
   maxOutputTokens: number,
   apiKey?: string,
@@ -69,7 +68,7 @@ export type Outline = {
 export type ReadyToGeneratePage = {
   section: OutlineSection;
   levels: string[];
-  messages: MessageParam[];
+  messages: genericMessageParam[];
 };
 
 

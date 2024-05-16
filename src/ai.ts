@@ -2,12 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { encoding_for_model, TiktokenModel } from "tiktoken";
+
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { countTokens } from "@anthropic-ai/tokenizer";
 import {
   MESSAGES_FOLDER,
-  NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE,
-  lumentisFolderPath
+  lumentisFolderPath,
+  AI_MODELS_INFO
 } from "./constants";
 import {
   getOutlineInferenceMessages,
@@ -16,9 +18,22 @@ import {
 import { AICallFailure, AICallResponse, AICallSuccess, AICallerOptions, Outline, genericMessageParam } from "./types";
 import { partialParse } from "./utils";
 
+const AI_PROVIDERS = {
+  anthropic: {
+    name: "Anthropic",
+    caller: callAnthropic,
+    costCounter: getClaudeCostsFromText
+  },
+  openai: {
+    name: "OpenAI",
+    caller: callOpenAI,
+    costCounter: getOpenAICostsFromText
+  }
+}
+
 
 async function callAnthropic(
-  messages: MessageParam[],
+  messages: genericMessageParam[],
   options: AICallerOptions
 ): Promise<AICallResponse> {
   const {
@@ -54,7 +69,7 @@ async function callAnthropic(
 
 
   const response = await anthropic.messages.create({
-    messages,
+    messages: messages as MessageParam[],
     model,
     system: systemPrompt ? systemPrompt : "",
     max_tokens: maxOutputTokens,
@@ -189,13 +204,12 @@ async function callOpenAI(
 //   prefix?: string,
 //   continueOnPartialJSON?: boolean
 // ) {
-  // note: should we call this caLLM for fun?
+// note: should we call this caLLM for fun?
 export async function callLLM(
-  messages: MessageParam[],
+  messages: genericMessageParam[],
   options: AICallerOptions
 ): Promise<AICallSuccess | AICallFailure> {
   const {
-    provider,
     model,
     maxOutputTokens,
     apiKey,
@@ -207,6 +221,7 @@ export async function callLLM(
     systemPrompt,
     continueOnPartialJSON
   } = options;
+  const provider = AI_MODELS_INFO[model].provider;
   const messageBackupSpot = path.join(lumentisFolderPath, MESSAGES_FOLDER);
 
   if (saveName) {
@@ -231,6 +246,14 @@ export async function callLLM(
     let fullMessage = "";
     let outputTokens = 0;
     let inputTokens = 0;
+    if (AI_PROVIDERS[provider] === undefined) {
+      throw new Error("Invalid provider");
+    }
+    else {
+      const aiResponse = await AI_PROVIDERS[provider].caller(
+        messages, options
+      );
+    }
     if (provider === "openai") {
       const OpenAIResp = await callOpenAI(
         messages as genericMessageParam[],
@@ -306,7 +329,6 @@ export async function callLLM(
           const continuance = await callLLM(
             newMessages,
             options = {
-              provider,
               model,
               maxOutputTokens,
               apiKey,
@@ -382,49 +404,45 @@ export async function callLLM(
   }
 }
 
-export function getClaudeCosts(
-  messages: MessageParam[],
+export function getCallCosts(
+  messages: genericMessageParam[],
   outputTokensExpected: number,
   model: string
 ) {
+  const provider = AI_MODELS_INFO[model].provider;
   const inputText: string = messages.map((m) => m.content).join("\n");
-  return getClaudeCostsFromText(inputText, outputTokensExpected, model);
+
+  return AI_PROVIDERS[provider].costCounter(inputText, outputTokensExpected, model);
 }
 
-export function getClaudeCostsFromText(
+function getClaudeCostsFromText(
   inputPrompt: string,
   outputTokensExpected: number,
   model: string
 ) {
   const inputTokens = countTokens(inputPrompt);
 
-  return getClaudeCostsWithTokens(inputTokens, outputTokensExpected, model);
+  return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);
 }
 
-function getClaudeCostsWithTokens(
+function getOpenAICostsFromText(
+  inputPrompt: string,
+  outputTokensExpected: number,
+  model: string
+) {
+  const tiktokenModel = AI_MODELS_INFO[model].tokenCountingModel! as TiktokenModel;
+  const enc = encoding_for_model(tiktokenModel);
+  const inputTokens = enc.encode(inputPrompt).length;
+
+  return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);
+}
+
+function getProviderCostsWithTokens(
   inputTokens: number,
   outputTokens: number,
   model: string
 ) {
-  const priceList: Record<
-    string,
-    { inputTokensPerM: number; outputTokensPerM }
-  > = {
-    "claude-3-opus-20240229": {
-      inputTokensPerM: 15,
-      outputTokensPerM: 75
-    },
-    "claude-3-sonnet-20240229": {
-      inputTokensPerM: 3,
-      outputTokensPerM: 15
-    },
-    "claude-3-haiku-20240307": {
-      inputTokensPerM: 0.25,
-      outputTokensPerM: 1.25
-    }
-  };
-
-  const prices = priceList[model];
+  const prices = AI_MODELS_INFO[model];
 
   const inputCost = (inputTokens / 1000000) * prices.inputTokensPerM;
   const outputCost = (outputTokens / 1000000) * prices.outputTokensPerM;
