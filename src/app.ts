@@ -292,7 +292,7 @@ async function runWizard() {
     // note: changed maxtokens from 800 to 700, don't think the title needs more than the description
     const titleOptionsResponse = await callLLM(
       titleInferenceMessages,
-      { ...baseOptions, saveName: "title", jsonType: "started_array" }
+      { ...baseOptions, saveName: "title", jsonType: "start_array" }
     );
 
     if (titleOptionsResponse.success) {
@@ -366,7 +366,7 @@ async function runWizard() {
   } else {
     const themesOptionsResponse = await callLLM(
       themesInferenceMessages,
-      { ...baseOptions, saveName: "themes", jsonType: "started_array" }
+      { ...baseOptions, saveName: "themes", jsonType: "start_array" }
     );
 
     if (themesOptionsResponse.success) {
@@ -422,7 +422,7 @@ async function runWizard() {
   } else {
     const audienceOptionsResponse = await callLLM(
       audienceInferenceMessages,
-      { ...baseOptions, saveName: "audience", jsonType: "started_array" }
+      { ...baseOptions, saveName: "audience", jsonType: "start_array" }
     );
 
     if (audienceOptionsResponse.success) {
@@ -479,7 +479,7 @@ async function runWizard() {
   if (questionPermission) {
     const questionsResponse = await callLLM(
       questionsMessages,
-      { ...baseOptions, saveName: "questions", jsonType: "started_array", maxOutputTokens: 2048 } // overwrites maxOutputTokens
+      { ...baseOptions, saveName: "questions", jsonType: "start_array", maxOutputTokens: 2048 } // overwrites maxOutputTokens
     );
 
     if (questionsResponse.success) {
@@ -594,7 +594,7 @@ async function runWizard() {
       { 
         ...baseOptions, 
         saveName: "outline", 
-        jsonType: "started_object", 
+        jsonType: "start_object", 
         maxOutputTokens: 4096,
         continueOnPartialJSON: true 
       }
@@ -756,7 +756,7 @@ async function runWizard() {
         {
           ...baseOptions,
           saveName: "regenerateOutline",
-          jsonType: "started_object",
+          jsonType: "start_object",
           maxOutputTokens: 4096,
           continueOnPartialJSON: true
         }

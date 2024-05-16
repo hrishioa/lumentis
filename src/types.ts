@@ -11,13 +11,13 @@ export type AICallerOptions = {
   streamToConsole?: boolean,
   systemPrompt?: string,
   saveName?: string,
-  jsonType?: "parse" | "started_array" | "started_object",
+  jsonType?: "parse" | "start_array" | "start_object",
   saveToFilepath?: string,
   prefix?: string,
   continueOnPartialJSON?: boolean
 }
 
-export type genericMessageParam = {
+export type GenericMessageParam = {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
@@ -68,7 +68,7 @@ export type Outline = {
 export type ReadyToGeneratePage = {
   section: OutlineSection;
   levels: string[];
-  messages: genericMessageParam[];
+  messages: GenericMessageParam[];
 };
 
 

@@ -15,7 +15,7 @@ import {
   getOutlineInferenceMessages,
   getPageGenerationInferenceMessages
 } from "./prompts";
-import { AICallFailure, AICallResponse, AICallSuccess, AICallerOptions, Outline, genericMessageParam } from "./types";
+import { AICallFailure, AICallResponse, AICallSuccess, AICallerOptions, Outline, GenericMessageParam } from "./types";
 import { partialParse } from "./utils";
 
 const AI_PROVIDERS = {
@@ -33,7 +33,7 @@ const AI_PROVIDERS = {
 
 
 async function callAnthropic(
-  messages: genericMessageParam[],
+  messages: GenericMessageParam[],
   options: AICallerOptions
 ): Promise<AICallResponse> {
   const {
@@ -48,12 +48,12 @@ async function callAnthropic(
   } = options;
   console.log("Calling Anthropic")
 
-  if (jsonType === "started_object") {
+  if (jsonType === "start_object") {
     messages.push({
       role: "assistant",
       content: "{",
     });
-  } else if (jsonType === "started_array") {
+  } else if (jsonType === "start_array") {
     messages.push({
       role: "assistant",
       content: "[",
@@ -108,11 +108,11 @@ async function callAnthropic(
     }
   }
 
-  if (jsonType === 'started_object')
+  if (jsonType === 'start_object')
     fullMessage = "{" + fullMessage;
-  else if (jsonType === 'started_array')
+  else if (jsonType === 'start_array')
     fullMessage = "[" + fullMessage;
-  if (jsonType === 'started_object' || jsonType === 'started_array')
+  if (jsonType === 'start_object' || jsonType === 'start_array')
     fullMessage = fullMessage.split("```")[0];
   if (jsonType === "parse") {
     const matchedJSON = fullMessage.match(/```json([\s\S]*?)```/g);
@@ -135,7 +135,7 @@ async function callAnthropic(
 // * Implement streaming. Doesn't look like OpenAI includes token usage in stream response object though, so that becomes complicated.
 // * `json_mode` doesn't really support continuance since it always returns proper JSON objects. Need to figure out how to handle that - json mode doesn't guarantee that it will actually finish the JSON object.
 async function callOpenAI(
-  messages: genericMessageParam[],
+  messages: GenericMessageParam[],
   options: AICallerOptions
 ): Promise<AICallResponse> {
   const {
@@ -150,7 +150,7 @@ async function callOpenAI(
   } = options;
   console.log("Calling OpenAI")
 
-  const arrayWrapperPromptAddition = jsonType === "started_array" ? "Wrap the array in an object with the key `response`." : "";
+  const arrayWrapperPromptAddition = jsonType === "start_array" ? "Wrap the array in an object with the key `response`." : "";
 
   if (systemPrompt) {
     messages.unshift({
@@ -184,7 +184,7 @@ async function callOpenAI(
     fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
   }
 
-  if (jsonType === 'started_array') {
+  if (jsonType === 'start_array') {
     fullMessage = JSON.stringify(JSON.parse(fullMessage).response);
   }
 
@@ -192,21 +192,10 @@ async function callOpenAI(
   return { fullMessage, inputTokens, outputTokens }
 }
 
-// export async function runClaudeInference(
-//   messages: MessageParam[],
-//   model: string,
-//   maxOutputTokens: number,
-//   apiKey?: string,
-//   streamToConsole = false,
-//   saveName?: string,
-//   jsonType?: "parse" | "started_array" | "started_object",
-//   saveToFilepath?: string,
-//   prefix?: string,
-//   continueOnPartialJSON?: boolean
-// ) {
+
 // note: should we call this caLLM for fun?
 export async function callLLM(
-  messages: genericMessageParam[],
+  messages: GenericMessageParam[],
   options: AICallerOptions
 ): Promise<AICallSuccess | AICallFailure> {
   const {
@@ -253,24 +242,9 @@ export async function callLLM(
       const aiResponse = await AI_PROVIDERS[provider].caller(
         messages, options
       );
-    }
-    if (provider === "openai") {
-      const OpenAIResp = await callOpenAI(
-        messages as genericMessageParam[],
-        options
-      );
-      fullMessage = OpenAIResp.fullMessage;
-      outputTokens = OpenAIResp.outputTokens;
-      inputTokens = OpenAIResp.inputTokens;
-    }
-    else if (provider === "anthropic") {
-      const AnthropResp = await callAnthropic(messages, options);
-      fullMessage = AnthropResp.fullMessage;
-      outputTokens = AnthropResp.outputTokens;
-      inputTokens = AnthropResp.inputTokens;
-    }
-    else {
-      throw new Error("Invalid provider");
+      fullMessage = aiResponse.fullMessage;
+      outputTokens = aiResponse.outputTokens;
+      inputTokens = aiResponse.inputTokens;
     }
 
     if (streamToConsole) process.stdout.write("\n\n");
@@ -285,10 +259,10 @@ export async function callLLM(
             .replace(/```/g, "")
             .trim();
         }
-      } else if (jsonType === "started_array") {
+      } else if (jsonType === "start_array") {
         fullMessage = "[" + fullMessage;
         fullMessage = fullMessage.split("```")[0];
-      } else if (jsonType === "started_object") {
+      } else if (jsonType === "start_object") {
         fullMessage = "{" + fullMessage;
         fullMessage = fullMessage.split("```")[0];
       }
@@ -405,7 +379,7 @@ export async function callLLM(
 }
 
 export function getCallCosts(
-  messages: genericMessageParam[],
+  messages: GenericMessageParam[],
   outputTokensExpected: number,
   model: string
 ) {
