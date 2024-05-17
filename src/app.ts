@@ -104,6 +104,9 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  if (AI_MODELS_INFO[wizardState.smarterModel].notes) {
+    console.log(AI_MODELS_INFO[wizardState.smarterModel].notes);
+  }
   // Ask to stream output to console
 
   wizardState.streamToConsole = await confirm({
@@ -613,7 +616,7 @@ async function runWizard() {
     const confirmOutline = await confirm({
       message: `We're about to generate the outline (Costs $${getCallCosts(
         outlineQuestions,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
@@ -631,7 +634,7 @@ async function runWizard() {
       ...baseOptions,
       saveName: "outline",
       jsonType: "start_object",
-      maxOutputTokens: 4096,
+      maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
       continueOnPartialJSON: true
     });
 
@@ -768,7 +771,7 @@ async function runWizard() {
     const newSections = await input({
       message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getCallCosts(
         regenerateOutlineInferenceMessages,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}): `
     });
@@ -792,7 +795,7 @@ async function runWizard() {
           ...baseOptions,
           saveName: "regenerateOutline",
           jsonType: "start_object",
-          maxOutputTokens: 4096,
+          maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
           continueOnPartialJSON: true
         }
       );
@@ -913,6 +916,13 @@ async function runWizard() {
   saveState(wizardState);
 
   if (
+    AI_MODELS_INFO[wizardState.pageGenerationModel].notes &&
+    wizardState.pageGenerationModel !== wizardState.smarterModel
+  ) {
+    console.log(AI_MODELS_INFO[wizardState.pageGenerationModel].notes);
+  }
+
+  if (
     AI_MODELS_INFO[wizardState.pageGenerationModel].provider ===
     AI_MODELS_INFO[wizardState.smarterModel].provider
   ) {
@@ -1012,7 +1022,8 @@ async function runWizard() {
       {
         name: "1",
         value: 1,
-        description: "Safest - we'll go one page at a time. Only one suitable for Claude at the moment."
+        description:
+          "Safest - we'll go one page at a time. Only one suitable for Claude at the moment."
       },
       {
         name: "2",

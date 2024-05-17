@@ -5,9 +5,11 @@ import OpenAI from "openai";
 import { TiktokenModel, encoding_for_model } from "tiktoken";
 
 import { MessageParam } from "@anthropic-ai/sdk/resources";
-import { countTokens } from "@anthropic-ai/tokenizer";
+import { countTokens as countClaudeTokens } from "@anthropic-ai/tokenizer";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
   AI_MODELS_INFO,
+  GOOGLE_SAFETY_SETTINGS,
   MESSAGES_FOLDER,
   lumentisFolderPath
 } from "./constants";
@@ -25,16 +27,38 @@ import {
 } from "./types";
 import { partialParse } from "./utils";
 
-const AI_PROVIDERS = {
+const AI_PROVIDERS: {
+  [key: string]: {
+    name: string;
+    caller: (
+      messages: GenericMessageParam[],
+      options: AICallerOptions
+    ) => Promise<AICallResponse>;
+    costCounter: (
+      inputPrompt: string,
+      outputTokensExpected: number,
+      model: string
+    ) => number;
+    continuePartialPossible: boolean;
+  };
+} = {
   anthropic: {
     name: "Anthropic",
     caller: callAnthropic,
-    costCounter: getClaudeCostsFromText
+    costCounter: getClaudeCostsFromText,
+    continuePartialPossible: true
   },
   openai: {
     name: "OpenAI",
     caller: callOpenAI,
-    costCounter: getOpenAICostsFromText
+    costCounter: getOpenAICostsFromText,
+    continuePartialPossible: false
+  },
+  google: {
+    name: "Google",
+    caller: callGemini,
+    costCounter: getClaudeCostsFromText, // TODO: Should change this, but google's token counting is an async function and needs api keys just to instantiate
+    continuePartialPossible: false
   }
 };
 
@@ -52,7 +76,6 @@ async function callAnthropic(
     systemPrompt,
     model
   } = options;
-  console.log("Calling Anthropic");
 
   if (jsonType === "start_object") {
     messages.push({
@@ -147,7 +170,6 @@ function extractArrayFromOpenAIResponse(response: string): string {
 }
 
 // TODO:
-// * Implement streaming. Doesn't look like OpenAI includes token usage in stream response object though, so that becomes complicated.
 // * `json_mode` doesn't really support continuance since it always returns proper JSON objects. Need to figure out how to handle that - json mode doesn't guarantee that it will actually finish the JSON object.
 async function callOpenAI(
   messages: GenericMessageParam[],
@@ -163,7 +185,6 @@ async function callOpenAI(
     systemPrompt,
     jsonType
   } = options;
-  console.log("Calling OpenAI");
 
   const arrayWrapperPromptAddition =
     jsonType === "start_array"
@@ -256,10 +277,13 @@ export async function callLLM(
     systemPrompt,
     continueOnPartialJSON
   } = options;
+  let { maxOutputTokens } = options;
+
+  process.stdout.write("\n\nCalling AI\n\n");
   const provider = AI_MODELS_INFO[model].provider;
-  const maxOutputTokens = Math.min(
+  maxOutputTokens = Math.min(
     AI_MODELS_INFO[model].outputTokenLimit,
-    options.maxOutputTokens
+    maxOutputTokens
   );
 
   if (AI_PROVIDERS[provider] === undefined) {
@@ -310,7 +334,7 @@ export async function callLLM(
         try {
           const parsedJSON = JSON.parse(potentialPartialJSON);
           fullMessage = JSON.stringify(parsedJSON, null, 2);
-
+          
           break;
         } catch (err) {
           const partialJSON = partialParse(potentialPartialJSON);
@@ -318,6 +342,19 @@ export async function callLLM(
           fullMessage = JSON.stringify(partialJSON, null, 2);
 
           if (!continueOnPartialJSON) {
+            break;
+          } else if (AI_PROVIDERS[provider].continuePartialPossible === false) {
+            // If we really want a proper JSON and the model can't give it, just use `partialParse`
+            // to get valid (closed out) JSON anyway.
+
+            // TODO: For AI providers that don't have an easy way of continuing on partial JSON,
+            // can we let the model know what they've got already, ask it to create a new object
+            // with the additional fields, and then merge the objects?
+            // TODO: how to make sure we have all required fields?
+            // TODO: I'm a bit uncertain about this in general but it might work in most cases?
+            // TODO: do this if `!continueOnPartialJSON` as well?
+            const limitedParsedJSON = partialParse(potentialPartialJSON);
+            fullMessage = JSON.stringify(limitedParsedJSON, null, 2);
             break;
           }
         }
@@ -428,7 +465,7 @@ function getClaudeCostsFromText(
   outputTokensExpected: number,
   model: string
 ) {
-  const inputTokens = countTokens(inputPrompt);
+  const inputTokens = countClaudeTokens(inputPrompt);
 
   return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);
 }
@@ -493,7 +530,8 @@ export function getPrimarySourceBudget(model: string) {
     true
   );
 
-  const writingTokens = countTokens(
+  // TODO: This should be changed to change based on model selection
+  const writingTokens = countClaudeTokens(
     writingMessages.map((m) => m.content).join("\n")
   );
 
@@ -502,4 +540,124 @@ export function getPrimarySourceBudget(model: string) {
   const WRITING_BUDGET = maxOutputTokens * 4;
 
   return maxTokens - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
+}
+
+function extractArrayFromGeminiResponse(response: string): string {
+  const respDict = JSON.parse(response);
+  const respKeys = Object.keys(respDict);
+  if (respKeys.length === 1) {
+    return JSON.stringify(respDict[respKeys[0]]);
+  } else {
+    const arr = respKeys.map((key) => respDict[key]);
+    return JSON.stringify(arr);
+  }
+}
+
+async function callGemini(
+  messages: GenericMessageParam[],
+  options: AICallerOptions
+): Promise<AICallResponse> {
+  const {
+    model,
+    maxOutputTokens,
+    streamToConsole,
+    saveToFilepath,
+    apiKey,
+    prefix,
+    systemPrompt,
+    jsonType
+  } = options;
+
+  const genAI = new GoogleGenerativeAI(
+    apiKey || process.env.GEMINI_API_KEY || ""
+  );
+
+  const arrayWrapperPromptAddition =
+    jsonType === "start_array"
+      ? "\n\nPlease wrap the returned array in a JSON object with a key of 'results' to ensure proper parsing. Eg: structure the returned object as `{ \"results\": [ ... ]}`"
+      : "";
+
+  const modelInstance = genAI.getGenerativeModel({
+    model,
+    systemInstruction: systemPrompt + arrayWrapperPromptAddition
+  });
+
+  const generationConfig = {
+    maxOutputTokens,
+    responseMimeType: jsonType ? "application/json" : "text/plain"
+  };
+
+  const geminiAcceptableMessages = messages
+    .filter(
+      (message, index) =>
+        message.role !== "assistant" || index < messages.length - 1
+    )
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }]
+    }));
+
+  const chat = modelInstance.startChat({
+    history: geminiAcceptableMessages.slice(0, -1),
+    safetySettings: GOOGLE_SAFETY_SETTINGS,
+    generationConfig
+  });
+
+  const resultStream = await chat.sendMessageStream(
+    geminiAcceptableMessages[geminiAcceptableMessages.length - 1].parts[0].text
+  );
+
+  if (streamToConsole) {
+    process.stdout.write(
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
+      }: `
+    );
+  }
+
+  let fullMessage = "";
+  let diffToFlush = 0;
+  let outputTokens = 0;
+  const inputTokens = (
+    await modelInstance.countTokens({
+      contents: geminiAcceptableMessages
+    })
+  ).totalTokens;
+
+  for await (const chunk of resultStream.stream) {
+    const chunkText = chunk.text();
+
+    outputTokens += chunk.usageMetadata?.candidatesTokenCount || 0;
+
+    if (!chunkText) continue;
+
+    fullMessage += chunkText;
+
+    if (streamToConsole) {
+      process.stdout.write(chunkText);
+    }
+
+    if (saveToFilepath) {
+      diffToFlush += chunkText.length;
+
+      if (diffToFlush > 5000) {
+        diffToFlush = 0;
+        fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+      }
+    }
+  }
+
+  if (jsonType === "start_array") {
+    fullMessage = extractArrayFromGeminiResponse(fullMessage);
+
+    if (saveToFilepath)
+      fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+  }
+
+  return {
+    fullMessage,
+    outputTokens,
+    inputTokens
+  };
 }
