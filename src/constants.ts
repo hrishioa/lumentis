@@ -1,3 +1,4 @@
+import { HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import path from "node:path";
 
 export const LUMENTIS_FOLDER = ".lumentis";
@@ -36,6 +37,12 @@ export const AI_MODELS_UI = [
     model: "gpt-4o",
     smarterDescription: "Worse than Opus, far better rate limits",
     pageDescription: "If you like OpenAI this is the one"
+  },
+  {
+    name: "Gemini 1.5 Flash",
+    model: "gemini-1.5-flash-latest",
+    smarterDescription: "Fast and cheap, with a lot more output length",
+    pageDescription: "For any Google stans"
   }
 ] as const;
 
@@ -43,7 +50,7 @@ export const AI_MODELS_UI = [
 export const AI_MODELS_INFO: Record<
   string,
   {
-    provider: "anthropic" | "openai";
+    provider: "anthropic" | "openai" | "google";
     tokenCountingModel?: string;
     totalTokenLimit: number;
     outputTokenLimit: number;
@@ -79,6 +86,13 @@ export const AI_MODELS_INFO: Record<
     outputTokenLimit: 4096,
     inputTokensPerM: 5,
     outputTokensPerM: 15
+  },
+  "gemini-1.5-flash-latest": {
+    provider: "google",
+    totalTokenLimit: 1000000,
+    outputTokenLimit: 8192,
+    inputTokensPerM: 0.75,
+    outputTokensPerM: 0.53
   }
 } as const;
 
@@ -114,3 +128,22 @@ export const RUNNERS = [
     installPrefix: "add"
   }
 ] as const;
+
+export const GOOGLE_SAFETY_SETTINGS = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE
+  }
+];

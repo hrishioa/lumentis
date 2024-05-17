@@ -5,9 +5,10 @@ import OpenAI from "openai";
 import { TiktokenModel, encoding_for_model } from "tiktoken";
 
 import { MessageParam } from "@anthropic-ai/sdk/resources";
-import { countTokens } from "@anthropic-ai/tokenizer";
+import { countTokens as countClaudeTokens } from "@anthropic-ai/tokenizer";
 import {
   AI_MODELS_INFO,
+  GOOGLE_SAFETY_SETTINGS,
   MESSAGES_FOLDER,
   lumentisFolderPath
 } from "./constants";
@@ -24,8 +25,22 @@ import {
   Outline
 } from "./types";
 import { partialParse } from "./utils";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const AI_PROVIDERS = {
+const AI_PROVIDERS: {
+  [key: string]: {
+    name: string;
+    caller: (
+      messages: GenericMessageParam[],
+      options: AICallerOptions
+    ) => Promise<AICallResponse>;
+    costCounter: (
+      inputPrompt: string,
+      outputTokensExpected: number,
+      model: string
+    ) => number;
+  };
+} = {
   anthropic: {
     name: "Anthropic",
     caller: callAnthropic,
@@ -35,6 +50,11 @@ const AI_PROVIDERS = {
     name: "OpenAI",
     caller: callOpenAI,
     costCounter: getOpenAICostsFromText
+  },
+  google: {
+    name: "Google",
+    caller: callGemini,
+    costCounter: getClaudeCostsFromText // TODO: Should change this, but google's token counting is an async function and needs api keys just to instantiate
   }
 };
 
@@ -428,7 +448,7 @@ function getClaudeCostsFromText(
   outputTokensExpected: number,
   model: string
 ) {
-  const inputTokens = countTokens(inputPrompt);
+  const inputTokens = countClaudeTokens(inputPrompt);
 
   return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);
 }
@@ -493,7 +513,8 @@ export function getPrimarySourceBudget(model: string) {
     true
   );
 
-  const writingTokens = countTokens(
+  // TODO: This should be changed to change based on model selection
+  const writingTokens = countClaudeTokens(
     writingMessages.map((m) => m.content).join("\n")
   );
 
@@ -502,4 +523,122 @@ export function getPrimarySourceBudget(model: string) {
   const WRITING_BUDGET = maxOutputTokens * 4;
 
   return maxTokens - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
+}
+
+function extractArrayFromGeminiResponse(response: string): string {
+  const respDict = JSON.parse(response);
+  const respKeys = Object.keys(respDict);
+  if (respKeys.length === 1) {
+    return JSON.stringify(respDict[respKeys[0]]);
+  } else {
+    const arr = respKeys.map((key) => respDict[key]);
+    return JSON.stringify(arr);
+  }
+}
+
+async function callGemini(
+  messages: GenericMessageParam[],
+  options: AICallerOptions
+): Promise<AICallResponse> {
+  const {
+    model,
+    maxOutputTokens,
+    streamToConsole,
+    saveToFilepath,
+    apiKey,
+    prefix,
+    systemPrompt,
+    jsonType
+  } = options;
+
+  const genAI = new GoogleGenerativeAI(
+    apiKey || process.env.GEMINI_API_KEY || ""
+  );
+
+  const arrayWrapperPromptAddition =
+    jsonType === "start_array"
+      ? "\n\nPlease wrap the returned array in a JSON object with a key of 'results' to ensure proper parsing. Eg: structure the returned object as `{ \"results\": [ ... ]}`"
+      : "";
+
+  const modelInstance = genAI.getGenerativeModel({
+    model,
+    systemInstruction: systemPrompt + arrayWrapperPromptAddition
+  });
+
+  const generationConfig = {
+    maxOutputTokens,
+    responseMimeType: jsonType ? "application/json" : "text/plain"
+  };
+
+  const geminiAcceptableMessages = messages
+    .filter(
+      (message, index) =>
+        message.role !== "assistant" || index < messages.length - 1
+    )
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }]
+    }));
+
+  const chat = modelInstance.startChat({
+    history: geminiAcceptableMessages.slice(0, -1),
+    safetySettings: GOOGLE_SAFETY_SETTINGS,
+    generationConfig
+  });
+
+  const resultStream = await chat.sendMessageStream(
+    geminiAcceptableMessages[geminiAcceptableMessages.length - 1].parts[0].text
+  );
+
+  if (streamToConsole) {
+    process.stdout.write(
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
+      }: `
+    );
+  }
+
+  let fullMessage = "";
+  let diffToFlush = 0;
+  let outputTokens = 0;
+  const inputTokens = (await modelInstance.countTokens({
+    contents: geminiAcceptableMessages
+  })).totalTokens;
+
+  for await (const chunk of resultStream.stream) {
+    const chunkText = chunk.text();
+
+    outputTokens += chunk.usageMetadata?.candidatesTokenCount || 0;
+
+    if (!chunkText) continue;
+
+    fullMessage += chunkText;
+
+    if (streamToConsole) {
+      process.stdout.write(chunkText);
+    }
+
+    if (saveToFilepath) {
+      diffToFlush += chunkText.length;
+
+      if (diffToFlush > 5000) {
+        diffToFlush = 0;
+        fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+      }
+    }
+  }
+
+  if (jsonType === "start_array") {
+    fullMessage = extractArrayFromGeminiResponse(fullMessage);
+
+    if (saveToFilepath)
+      fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+  }
+
+  return {
+    fullMessage,
+    outputTokens,
+    inputTokens
+  };
 }
