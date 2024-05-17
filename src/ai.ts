@@ -182,12 +182,10 @@ async function callOpenAI(
   const completion = await openai.chat.completions.create({
     messages,
     model,
+    stream: true,
     max_tokens: maxOutputTokens,
     response_format: jsonType ? { type: "json_object" } : undefined
   });
-  let fullMessage = completion.choices[0].message.content || "";
-  const inputTokens = completion.usage?.prompt_tokens || 0; // I have no idea why usage can be undefined???
-  const outputTokens = completion.usage?.completion_tokens || 0;
 
   if (streamToConsole) {
     process.stdout.write(
@@ -195,17 +193,50 @@ async function callOpenAI(
         saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
-    process.stdout.write(fullMessage);
   }
-  if (saveToFilepath) {
-    fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+
+  let fullMessage = "";
+  let diffToFlush = 0;
+
+  let promptTokens = 0;
+  let completionTokens = 0;
+
+  for await (const chunk of completion) {
+    promptTokens += chunk.usage?.prompt_tokens || 0;
+    completionTokens += chunk.usage?.completion_tokens || 0;
+    const chunkText =
+      chunk.choices?.map((choice) => choice.delta.content).join("") || "";
+
+    if (!chunkText) continue;
+
+    fullMessage += chunkText;
+
+    if (streamToConsole) {
+      process.stdout.write(chunkText);
+    }
+
+    if (saveToFilepath) {
+      diffToFlush += chunkText.length;
+
+      if (diffToFlush > 5000) {
+        diffToFlush = 0;
+        fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
+      }
+    }
   }
 
   if (jsonType === "start_array") {
     fullMessage = extractArrayFromOpenAIResponse(fullMessage);
+
+    if (saveToFilepath)
+      fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
   }
 
-  return { fullMessage, inputTokens, outputTokens };
+  return {
+    fullMessage,
+    outputTokens: completionTokens,
+    inputTokens: promptTokens
+  };
 }
 
 // hebe's note: should we call this caLLM for fun?
@@ -407,9 +438,7 @@ function getOpenAICostsFromText(
   outputTokensExpected: number,
   model: string
 ) {
-  const tiktokenModel = AI_MODELS_INFO[model]
-    .tokenCountingModel as TiktokenModel;
-  const enc = encoding_for_model(tiktokenModel);
+  const enc = encoding_for_model("gpt-4-turbo"); // To solve the problem that gpt-4o doesn't have a proper tokenizer yet
   const inputTokens = enc.encode(inputPrompt).length;
 
   return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);

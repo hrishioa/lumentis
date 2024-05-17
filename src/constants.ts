@@ -35,8 +35,7 @@ export const AI_MODELS_UI = [
     name: "OpenAI GPT-4 Omni",
     model: "gpt-4o",
     smarterDescription: "Worse than Opus, far better rate limits",
-    pageDescription:
-      "If you like OpenAI this is the one"
+    pageDescription: "If you like OpenAI this is the one"
   }
 ] as const;
 

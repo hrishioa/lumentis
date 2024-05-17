@@ -46,11 +46,11 @@ import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
-    const keysToWrite = Object.keys(state).filter(k => !k.includes('Apikey'))
+    const keysToWrite = Object.keys(state).filter((k) => !k.includes("Apikey"));
     const stateToWrite = keysToWrite.reduce((acc, key) => {
-      acc[key] = state[key]
-      return acc
-    }, {} as WizardState)
+      acc[key] = state[key];
+      return acc;
+    }, {} as WizardState);
     if (!fs.existsSync(lumentisFolderPath)) fs.mkdirSync(lumentisFolderPath);
     fs.writeFileSync(wizardStatePath, JSON.stringify(stateToWrite, null, 2));
   }
