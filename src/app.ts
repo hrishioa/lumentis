@@ -238,7 +238,7 @@ async function runWizard() {
 
   const baseOptions: AICallerOptions = {
     model: wizardState.smarterModel,
-    maxOutputTokens: 700,
+    maxOutputTokens: 2048,
     apiKey: wizardState.smarterApikey,
     streamToConsole: wizardState.streamToConsole
   };
