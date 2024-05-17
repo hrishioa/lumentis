@@ -311,19 +311,20 @@ async function runWizard() {
     });
 
     if (titleOptionsResponse.success) {
-      const titleOptions: any = titleOptionsResponse.message; // I don't understand why this has to be type 'any' but it does
+      const titleOptions: string[] = titleOptionsResponse.message; // I don't understand why this has to be type 'any' but it does
       const selectedAnswer: string = await select({
         message: "Pick your favorite or enter a new one: ",
-        choices: titleOptions
-          .map((title: string) => ({
+        choices: [
+          ...titleOptions.map((title: string) => ({
             name: title,
             value: title
-          }))
-          .concat([
+          })),
+          ...[
             new Separator(),
             { name: "Enter a new one", value: "__new__" },
             new Separator()
-          ])
+          ]
+        ]
       });
 
       wizardState.title =
