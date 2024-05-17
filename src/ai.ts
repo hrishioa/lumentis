@@ -167,7 +167,6 @@ function extractArrayFromOpenAIResponse(response: string): string {
 }
 
 // TODO:
-// * Implement streaming. Doesn't look like OpenAI includes token usage in stream response object though, so that becomes complicated.
 // * `json_mode` doesn't really support continuance since it always returns proper JSON objects. Need to figure out how to handle that - json mode doesn't guarantee that it will actually finish the JSON object.
 async function callOpenAI(
   messages: GenericMessageParam[],
