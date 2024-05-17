@@ -4,7 +4,14 @@ import path from "node:path";
 
 import { callLLM } from "./ai";
 import { AI_MODELS_INFO, LUMENTIS_FOLDER, RUNNERS } from "./constants";
-import { AICallerOptions, ReadyToGeneratePage, WizardState } from "./types";
+import {
+  AICallFailure,
+  AICallSuccess,
+  AICallerOptions,
+  ReadyToGeneratePage,
+  WizardState
+} from "./types";
+import { runThunksInParallelQueue } from "./utils";
 
 function writeConfigFiles(directory: string, wizardState: WizardState) {
   let packageJSON = fs.existsSync(path.join(directory, "package.json"))
@@ -187,7 +194,8 @@ export async function generatePages(
   startNextra: boolean,
   pages: ReadyToGeneratePage[],
   pagesFolder: string,
-  wizardState: WizardState
+  wizardState: WizardState,
+  parallelJobs = 1
 ) {
   if (!fs.existsSync(pagesFolder)) {
     throw new Error(`Pages folder ${pagesFolder} does not exist`);
@@ -219,6 +227,9 @@ export async function generatePages(
       process.exit();
     });
   }
+
+  const pageWritingThunks: (() => Promise<AICallSuccess | AICallFailure>)[] =
+    [];
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
@@ -288,8 +299,13 @@ export async function generatePages(
       prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
     };
 
-    await callLLM(page.messages, llmOptions);
+    pageWritingThunks.push(() => callLLM(page.messages, llmOptions));
   }
+
+  await runThunksInParallelQueue(
+    pageWritingThunks,
+    parallelJobs || pageWritingThunks.length
+  );
 
   console.log(
     `\n\nAND WE'RE DONE! Run \`${preferredRunner.command} run dev\` to start the docs server once you quit. You can always rerun Lumentis to make changes.

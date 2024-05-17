@@ -2,6 +2,54 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as spawn from "cross-spawn";
 
+export async function runThunksInParallelQueue<T>(
+  thunks: (() => Promise<T>)[],
+  parallelJobs: number
+) {
+  const results: T[] = [];
+  const executing = new Set<Promise<void>>();
+
+  async function runNext() {
+    if (thunks.length === 0) return;
+
+    const thunk = thunks.shift();
+    if (!thunk) return;
+
+    // console.log(`Job added, executing.size: ${executing.size + 1}`);
+    const promise = thunk()
+      .then((result) => {
+        executing.delete(promise);
+        results.push(result);
+        // console.log(`Job completed, executing.size: ${executing.size + 1}`);
+        return runNext();
+      })
+      .catch((err) => {
+        executing.delete(promise);
+        console.error(
+          `Job failed in parallel execution, executing.size: ${
+            executing.size + 1
+          }`,
+          err
+        );
+        return runNext();
+      });
+
+    executing.add(promise);
+
+    if (executing.size >= parallelJobs) {
+      await Promise.race(executing);
+    }
+  }
+
+  const initialPromises = Array.from({ length: parallelJobs }, runNext);
+  await Promise.all(initialPromises);
+
+  // Wait for all remaining promises to resolve
+  await Promise.all(executing);
+
+  return results;
+}
+
 export function parsePlatformIndependentPath(iPath: string): string {
   if (os.platform() === "win32") {
     return path.normalize(iPath.replace(/^["'](.*)["']$/, "$1").trim());

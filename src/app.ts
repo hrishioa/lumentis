@@ -1005,16 +1005,32 @@ async function runWizard() {
     );
   }
 
-  const finalCheck = await confirm({
-    message: "#######\n\nReady to start? ",
-    default: true,
-    transformer: (answer) => (answer ? "👍" : "👎")
+  const parallelPagesToGenerate = await select({
+    message:
+      "\n\n##############\n\nReady to start. How many pages do you want to generate simultaneously?",
+    choices: [
+      {
+        name: "1",
+        value: 1,
+        description: "Safest - we'll go one page at a time"
+      },
+      {
+        name: "2",
+        value: 2,
+        description: "A little faster"
+      },
+      {
+        name: "5",
+        value: 5,
+        description: "Whoa there"
+      },
+      {
+        name: "All",
+        value: 0,
+        description: "Use at your own risk - bloody fast!"
+      }
+    ]
   });
-
-  if (!finalCheck) {
-    console.log("No problem! You know where to find me.");
-    return;
-  }
 
   console.log(
     "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
@@ -1024,7 +1040,8 @@ async function runWizard() {
     true,
     pageWritingMessages,
     path.join(docsFolder, "pages"),
-    wizardState
+    wizardState,
+    parallelPagesToGenerate
   );
 }
 
