@@ -1012,7 +1012,7 @@ async function runWizard() {
       {
         name: "1",
         value: 1,
-        description: "Safest - we'll go one page at a time"
+        description: "Safest - we'll go one page at a time. Only one suitable for Claude at the moment."
       },
       {
         name: "2",
