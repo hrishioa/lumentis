@@ -1,4 +1,4 @@
-import { HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
+import { HarmBlockThreshold, HarmCategory } from '@google/generative-ai'; 
 import path from "node:path";
 
 export const LUMENTIS_FOLDER = ".lumentis";
@@ -13,7 +13,12 @@ export const MAX_HEADING_CHAR_LENGTH = 50;
 export const NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE = 200;
 
 // MUST UPDATE `AI_PROVIDERS` IN ai.ts WHEN NEW PROVIDER ADDED
-export const AI_MODELS_UI = [
+export const AI_MODELS_UI: {
+  name: string;
+  model: string;
+  smarterDescription: string;
+  pageDescription: string;
+}[] = [
   {
     name: "Claude 3 Opus",
     model: "claude-3-opus-20240229",
@@ -55,7 +60,8 @@ export const AI_MODELS_INFO: Record<
     totalTokenLimit: number;
     outputTokenLimit: number;
     inputTokensPerM: number;
-    outputTokensPerM;
+    outputTokensPerM: number;
+    notes?: string;
   }
 > = {
   "claude-3-opus-20240229": {
@@ -92,7 +98,11 @@ export const AI_MODELS_INFO: Record<
     totalTokenLimit: 1000000,
     outputTokenLimit: 8192,
     inputTokensPerM: 0.75,
-    outputTokensPerM: 0.53
+    outputTokensPerM: 0.53,
+    notes: `
+Please be aware that Google offers both Free and Paid plans, determined by the API key used.
+We list costs for the Paid plan. Free plan costs $0.00, but means Google will use your data.
+See: ai.google.dev/gemini-api/terms`
   }
 } as const;
 

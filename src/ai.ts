@@ -6,6 +6,7 @@ import { TiktokenModel, encoding_for_model } from "tiktoken";
 
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { countTokens as countClaudeTokens } from "@anthropic-ai/tokenizer";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
   AI_MODELS_INFO,
   GOOGLE_SAFETY_SETTINGS,
@@ -25,7 +26,6 @@ import {
   Outline
 } from "./types";
 import { partialParse } from "./utils";
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const AI_PROVIDERS: {
   [key: string]: {
@@ -39,22 +39,26 @@ const AI_PROVIDERS: {
       outputTokensExpected: number,
       model: string
     ) => number;
+    continuePartialPossible: boolean;
   };
 } = {
   anthropic: {
     name: "Anthropic",
     caller: callAnthropic,
-    costCounter: getClaudeCostsFromText
+    costCounter: getClaudeCostsFromText,
+    continuePartialPossible: true
   },
   openai: {
     name: "OpenAI",
     caller: callOpenAI,
-    costCounter: getOpenAICostsFromText
+    costCounter: getOpenAICostsFromText,
+    continuePartialPossible: false
   },
   google: {
     name: "Google",
     caller: callGemini,
-    costCounter: getClaudeCostsFromText // TODO: Should change this, but google's token counting is an async function and needs api keys just to instantiate
+    costCounter: getClaudeCostsFromText, // TODO: Should change this, but google's token counting is an async function and needs api keys just to instantiate
+    continuePartialPossible: false
   }
 };
 
@@ -72,7 +76,6 @@ async function callAnthropic(
     systemPrompt,
     model
   } = options;
-  console.log("Calling Anthropic");
 
   if (jsonType === "start_object") {
     messages.push({
@@ -182,7 +185,6 @@ async function callOpenAI(
     systemPrompt,
     jsonType
   } = options;
-  console.log("Calling OpenAI");
 
   const arrayWrapperPromptAddition =
     jsonType === "start_array"
@@ -275,10 +277,13 @@ export async function callLLM(
     systemPrompt,
     continueOnPartialJSON
   } = options;
+  let { maxOutputTokens } = options;
+
+  process.stdout.write("\n\nCalling AI\n\n");
   const provider = AI_MODELS_INFO[model].provider;
-  const maxOutputTokens = Math.min(
+  maxOutputTokens = Math.min(
     AI_MODELS_INFO[model].outputTokenLimit,
-    options.maxOutputTokens
+    maxOutputTokens
   );
 
   if (AI_PROVIDERS[provider] === undefined) {
@@ -329,7 +334,7 @@ export async function callLLM(
         try {
           const parsedJSON = JSON.parse(potentialPartialJSON);
           fullMessage = JSON.stringify(parsedJSON, null, 2);
-
+          
           break;
         } catch (err) {
           const partialJSON = partialParse(potentialPartialJSON);
@@ -337,6 +342,19 @@ export async function callLLM(
           fullMessage = JSON.stringify(partialJSON, null, 2);
 
           if (!continueOnPartialJSON) {
+            break;
+          } else if (AI_PROVIDERS[provider].continuePartialPossible === false) {
+            // If we really want a proper JSON and the model can't give it, just use `partialParse`
+            // to get valid (closed out) JSON anyway.
+
+            // TODO: For AI providers that don't have an easy way of continuing on partial JSON,
+            // can we let the model know what they've got already, ask it to create a new object
+            // with the additional fields, and then merge the objects?
+            // TODO: how to make sure we have all required fields?
+            // TODO: I'm a bit uncertain about this in general but it might work in most cases?
+            // TODO: do this if `!continueOnPartialJSON` as well?
+            const limitedParsedJSON = partialParse(potentialPartialJSON);
+            fullMessage = JSON.stringify(limitedParsedJSON, null, 2);
             break;
           }
         }
@@ -601,9 +619,11 @@ async function callGemini(
   let fullMessage = "";
   let diffToFlush = 0;
   let outputTokens = 0;
-  const inputTokens = (await modelInstance.countTokens({
-    contents: geminiAcceptableMessages
-  })).totalTokens;
+  const inputTokens = (
+    await modelInstance.countTokens({
+      contents: geminiAcceptableMessages
+    })
+  ).totalTokens;
 
   for await (const chunk of resultStream.stream) {
     const chunkText = chunk.text();

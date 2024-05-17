@@ -104,6 +104,9 @@ async function runWizard() {
 
   saveState(wizardState);
 
+  if (AI_MODELS_INFO[wizardState.smarterModel].notes) {
+    console.log(AI_MODELS_INFO[wizardState.smarterModel].notes);
+  }
   // Ask to stream output to console
 
   wizardState.streamToConsole = await confirm({
@@ -911,6 +914,13 @@ async function runWizard() {
   });
 
   saveState(wizardState);
+
+  if (
+    AI_MODELS_INFO[wizardState.pageGenerationModel].notes &&
+    wizardState.pageGenerationModel !== wizardState.smarterModel
+  ) {
+    console.log(AI_MODELS_INFO[wizardState.pageGenerationModel].notes);
+  }
 
   if (
     AI_MODELS_INFO[wizardState.pageGenerationModel].provider ===
