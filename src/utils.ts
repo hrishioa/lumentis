@@ -55,7 +55,6 @@ function getNonWhitespaceCharacterOfStringAt(
   };
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 export function partialParse(str: string): any {
   const tail: string[] = [];
   let i: number;
@@ -77,7 +76,7 @@ export function partialParse(str: string): any {
   if (tail[tail.length - 1] === "}") {
     // Ignore checking if the last key is an array:
     if (s[s.length - 1] !== "]") {
-      let insideLiteral = (s.split(/."/).length - 1) % 2 === 1 ? true : false; // If there are an odd number of double quotes, then we are in a string
+      let insideLiteral = (s.split(/."/).length - 1) % 2 === 1; // If there are an odd number of double quotes, then we are in a string
       let lastKV = "";
       let metAColon = false;
       let j: number;

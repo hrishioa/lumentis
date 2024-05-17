@@ -1,5 +1,5 @@
 // import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { Outline, OutlineSection, GenericMessageParam } from "./types";
+import { GenericMessageParam, Outline, OutlineSection } from "./types";
 
 export function getTitleInferenceMessages(
   primarySource: string,

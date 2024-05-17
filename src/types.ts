@@ -1,32 +1,31 @@
 import { RUNNERS } from "./constants";
 
-
 // ________________________  AI TYPES  ________________________
 
 export type AICallerOptions = {
   // provider: 'anthropic' | 'openai',
-  model: string,
-  maxOutputTokens: number,
-  apiKey?: string,
-  streamToConsole?: boolean,
-  systemPrompt?: string,
-  saveName?: string,
-  jsonType?: "parse" | "start_array" | "start_object",
-  saveToFilepath?: string,
-  prefix?: string,
-  continueOnPartialJSON?: boolean
-}
+  model: string;
+  maxOutputTokens: number;
+  apiKey?: string;
+  streamToConsole?: boolean;
+  systemPrompt?: string;
+  saveName?: string;
+  jsonType?: "parse" | "start_array" | "start_object";
+  saveToFilepath?: string;
+  prefix?: string;
+  continueOnPartialJSON?: boolean;
+};
 
 export type GenericMessageParam = {
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
-}
+};
 
 export type AICosts = {
   input: number;
   output: number;
   total: number;
-}
+};
 
 export type AICallSuccess = {
   success: true;
@@ -46,7 +45,7 @@ export type AICallResponse = {
   fullMessage: string;
   outputTokens: number;
   inputTokens: number;
-}
+};
 
 // ##############################  DOCS OUTLINE  ##############################
 
@@ -56,7 +55,7 @@ export type LLMOutlineSection = {
   title: string;
   permalink: string;
   singleSentenceDescription: string;
-  keythingsToCover:string[];
+  keythingsToCover: string[];
   subsections?: OutlineSection[];
 };
 
@@ -70,7 +69,6 @@ export type ReadyToGeneratePage = {
   levels: string[];
   messages: GenericMessageParam[];
 };
-
 
 // ##############################  WIZARD  ##############################
 export type WizardState = Partial<{

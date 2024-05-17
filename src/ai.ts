@@ -2,20 +2,27 @@ import fs from "node:fs";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { encoding_for_model, TiktokenModel } from "tiktoken";
+import { TiktokenModel, encoding_for_model } from "tiktoken";
 
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 import { countTokens } from "@anthropic-ai/tokenizer";
 import {
+  AI_MODELS_INFO,
   MESSAGES_FOLDER,
-  lumentisFolderPath,
-  AI_MODELS_INFO
+  lumentisFolderPath
 } from "./constants";
 import {
   getOutlineInferenceMessages,
   getPageGenerationInferenceMessages
 } from "./prompts";
-import { AICallFailure, AICallResponse, AICallSuccess, AICallerOptions, Outline, GenericMessageParam } from "./types";
+import {
+  AICallFailure,
+  AICallResponse,
+  AICallSuccess,
+  AICallerOptions,
+  GenericMessageParam,
+  Outline
+} from "./types";
 import { partialParse } from "./utils";
 
 const AI_PROVIDERS = {
@@ -29,8 +36,7 @@ const AI_PROVIDERS = {
     caller: callOpenAI,
     costCounter: getOpenAICostsFromText
   }
-}
-
+};
 
 async function callAnthropic(
   messages: GenericMessageParam[],
@@ -44,19 +50,19 @@ async function callAnthropic(
     prefix,
     jsonType,
     systemPrompt,
-    model,
+    model
   } = options;
-  console.log("Calling Anthropic")
+  console.log("Calling Anthropic");
 
   if (jsonType === "start_object") {
     messages.push({
       role: "assistant",
-      content: "{",
+      content: "{"
     });
   } else if (jsonType === "start_array") {
     messages.push({
       role: "assistant",
-      content: "[",
+      content: "["
     });
   }
 
@@ -67,18 +73,18 @@ async function callAnthropic(
 
   const anthropic = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
 
-
   const response = await anthropic.messages.create({
     messages: messages as MessageParam[],
     model,
     system: systemPrompt ? systemPrompt : "",
     max_tokens: maxOutputTokens,
-    stream: true,
+    stream: true
   });
 
   if (streamToConsole)
     process.stdout.write(
-      `\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
 
@@ -92,7 +98,6 @@ async function callAnthropic(
 
     if (chunk.type === "message_delta")
       outputTokens += chunk.usage.output_tokens;
-
 
     if (streamToConsole) process.stdout.write(chunkText);
 
@@ -108,11 +113,9 @@ async function callAnthropic(
     }
   }
 
-  if (jsonType === 'start_object')
-    fullMessage = "{" + fullMessage;
-  else if (jsonType === 'start_array')
-    fullMessage = "[" + fullMessage;
-  if (jsonType === 'start_object' || jsonType === 'start_array')
+  if (jsonType === "start_object") fullMessage = "{" + fullMessage;
+  else if (jsonType === "start_array") fullMessage = "[" + fullMessage;
+  if (jsonType === "start_object" || jsonType === "start_array")
     fullMessage = fullMessage.split("```")[0];
   if (jsonType === "parse") {
     const matchedJSON = fullMessage.match(/```json([\s\S]*?)```/g);
@@ -127,11 +130,11 @@ async function callAnthropic(
   return {
     fullMessage,
     outputTokens,
-    inputTokens,
-  }
+    inputTokens
+  };
 }
 
-// TODO: 
+// TODO:
 // * Implement streaming. Doesn't look like OpenAI includes token usage in stream response object though, so that becomes complicated.
 // * `json_mode` doesn't really support continuance since it always returns proper JSON objects. Need to figure out how to handle that - json mode doesn't guarantee that it will actually finish the JSON object.
 async function callOpenAI(
@@ -148,17 +151,19 @@ async function callOpenAI(
     systemPrompt,
     jsonType
   } = options;
-  console.log("Calling OpenAI")
+  console.log("Calling OpenAI");
 
-  const arrayWrapperPromptAddition = jsonType === "start_array" ? "Wrap the array in an object with the key `response`." : "";
+  const arrayWrapperPromptAddition =
+    jsonType === "start_array"
+      ? "Wrap the array in an object with the key `response`."
+      : "";
 
   if (systemPrompt) {
     messages.unshift({
       role: "system",
-      content: systemPrompt + arrayWrapperPromptAddition,
+      content: systemPrompt + arrayWrapperPromptAddition
     });
   }
-
 
   const openai = apiKey ? new OpenAI({ apiKey }) : new OpenAI();
 
@@ -166,32 +171,30 @@ async function callOpenAI(
     messages,
     model,
     max_tokens: maxOutputTokens,
-    response_format: jsonType ? { type: "json_object" } : undefined,
+    response_format: jsonType ? { type: "json_object" } : undefined
   });
-  let fullMessage = completion.choices[0].message.content || '';
+  let fullMessage = completion.choices[0].message.content || "";
   const inputTokens = completion.usage?.prompt_tokens || 0; // I have no idea why usage can be undefined???
   const outputTokens = completion.usage?.completion_tokens || 0;
 
-
   if (streamToConsole) {
     process.stdout.write(
-      `\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
-    process.stdout.write(fullMessage)
+    process.stdout.write(fullMessage);
   }
   if (saveToFilepath) {
     fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
   }
 
-  if (jsonType === 'start_array') {
+  if (jsonType === "start_array") {
     fullMessage = JSON.stringify(JSON.parse(fullMessage).response);
   }
 
-
-  return { fullMessage, inputTokens, outputTokens }
+  return { fullMessage, inputTokens, outputTokens };
 }
-
 
 // note: should we call this caLLM for fun?
 export async function callLLM(
@@ -202,7 +205,7 @@ export async function callLLM(
     model,
     maxOutputTokens,
     apiKey,
-    streamToConsole = false,  // Set default values here
+    streamToConsole = false, // Set default values here
     saveName,
     jsonType,
     saveToFilepath,
@@ -237,11 +240,8 @@ export async function callLLM(
     let inputTokens = 0;
     if (AI_PROVIDERS[provider] === undefined) {
       throw new Error("Invalid provider");
-    }
-    else {
-      const aiResponse = await AI_PROVIDERS[provider].caller(
-        messages, options
-      );
+    } else {
+      const aiResponse = await AI_PROVIDERS[provider].caller(messages, options);
       fullMessage = aiResponse.fullMessage;
       outputTokens = aiResponse.outputTokens;
       inputTokens = aiResponse.inputTokens;
@@ -281,17 +281,14 @@ export async function callLLM(
         ];
 
         try {
-          const continuance = await callLLM(
-            newMessages,
-            options = {
-              model,
-              maxOutputTokens,
-              apiKey,
-              streamToConsole,
-              saveName,
-              continueOnPartialJSON: false,
-            }
-          );
+          const continuance = await callLLM(newMessages, {
+            model,
+            maxOutputTokens,
+            apiKey,
+            streamToConsole,
+            saveName,
+            continueOnPartialJSON: false
+          });
 
           if (continuance.success === false) {
             const sortOfPartialJSON = partialParse(potentialPartialJSON);
@@ -302,7 +299,6 @@ export async function callLLM(
             inputTokens += continuance.inputTokens || 0;
             potentialPartialJSON += continuance.message;
           }
-
         } catch (err) {
           console.error("Breaking because of error - ", err);
           break;
@@ -331,7 +327,6 @@ export async function callLLM(
     //   output: getCallCostsWithTokens(0, outputTokens, provider, model)
     // }
 
-
     return {
       success: true,
       outputTokens,
@@ -343,18 +338,20 @@ export async function callLLM(
     const errText = (err as Error).toString();
     console.error(err);
 
-    if (errText.toLowerCase().includes("rate limit") ||
-      errText.toLowerCase().includes("ratelimit")) {
+    if (
+      errText.toLowerCase().includes("rate limit") ||
+      errText.toLowerCase().includes("ratelimit")
+    ) {
       return {
         success: false,
         rateLimited: true,
-        error: errText,
+        error: errText
       };
     }
     return {
       success: false,
       rateLimited: false,
-      error: errText,
+      error: errText
     };
   }
 }
@@ -367,7 +364,11 @@ export function getCallCosts(
   const provider = AI_MODELS_INFO[model].provider;
   const inputText: string = messages.map((m) => m.content).join("\n");
 
-  return AI_PROVIDERS[provider].costCounter(inputText, outputTokensExpected, model);
+  return AI_PROVIDERS[provider].costCounter(
+    inputText,
+    outputTokensExpected,
+    model
+  );
 }
 
 function getClaudeCostsFromText(
@@ -385,7 +386,8 @@ function getOpenAICostsFromText(
   outputTokensExpected: number,
   model: string
 ) {
-  const tiktokenModel = AI_MODELS_INFO[model].tokenCountingModel! as TiktokenModel;
+  const tiktokenModel = AI_MODELS_INFO[model]
+    .tokenCountingModel as TiktokenModel;
   const enc = encoding_for_model(tiktokenModel);
   const inputTokens = enc.encode(inputPrompt).length;
 

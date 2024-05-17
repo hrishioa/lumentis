@@ -3,7 +3,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
-import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -13,11 +12,8 @@ import {
   password,
   select
 } from "@inquirer/prompts";
-import {
-  CLAUDE_PRIMARYSOURCE_BUDGET,
-  getCallCosts,
-  callLLM
-} from "./ai";
+import { YoutubeTranscript } from "youtube-transcript";
+import { CLAUDE_PRIMARYSOURCE_BUDGET, callLLM, getCallCosts } from "./ai";
 import {
   AI_MODELS_INFO,
   AI_MODELS_UI,
@@ -122,24 +118,36 @@ async function runWizard() {
       "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
     validate: async (filename) => {
-      if(filename?.trim()) {
-        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+      if (filename?.trim()) {
+        if (
+          (filename === wizardState.primarySourceFilename ||
+            filename === parsePlatformIndependentPath(filename)) &&
+          wizardState.loadedPrimarySource
+        )
+          return true;
         if (filename.includes("youtube.com")) {
           try {
-            const transcript = await YoutubeTranscript.fetchTranscript(filename);
-            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            const transcript =
+              await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript
+              .map((line) => line.text)
+              .join("\n");
             wizardState.primarySourceFilename = filename;
-          } catch(err) {
+          } catch (err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
-        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+        } else if (!fs.existsSync(parsePlatformIndependentPath(filename))) {
           return `File not found - tried to load ${filename}. Try again.`;
         } else {
           try {
-            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+            const dataFromFile = fs.readFileSync(
+              parsePlatformIndependentPath(filename),
+              "utf-8"
+            );
             wizardState.loadedPrimarySource = dataFromFile;
-            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
-          } catch(err) {
+            wizardState.primarySourceFilename =
+              parsePlatformIndependentPath(filename);
+          } catch (err) {
             return `Couldn't read file - tried to load ${filename}. Try again.`;
           }
         }
@@ -150,7 +158,7 @@ async function runWizard() {
 
   saveState(wizardState);
 
-  if(!wizardState.loadedPrimarySource) {
+  if (!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
@@ -223,12 +231,12 @@ async function runWizard() {
 
   // Ask for source description
 
-  const baseOptions : AICallerOptions = {
+  const baseOptions: AICallerOptions = {
     model: wizardState.smarterModel,
     maxOutputTokens: 700,
     apiKey: wizardState.smarterApikey,
-    streamToConsole: wizardState.streamToConsole,
-  }
+    streamToConsole: wizardState.streamToConsole
+  };
 
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
     wizardState.loadedPrimarySource
@@ -246,10 +254,10 @@ async function runWizard() {
   if (description.trim()) {
     wizardState.description = description;
   } else {
-    const generatedDescription = await callLLM(
-      descriptionInferenceMessages,
-      {...baseOptions, saveName: "description"}
-    );
+    const generatedDescription = await callLLM(descriptionInferenceMessages, {
+      ...baseOptions,
+      saveName: "description"
+    });
 
     if (generatedDescription.success) {
       console.log(
@@ -291,16 +299,18 @@ async function runWizard() {
     wizardState.title = title;
   } else {
     // note: changed maxtokens from 800 to 700, don't think the title needs more than the description
-    const titleOptionsResponse = await callLLM(
-      titleInferenceMessages,
-      { ...baseOptions, saveName: "title", jsonType: "start_array" }
-    );
+    const titleOptionsResponse = await callLLM(titleInferenceMessages, {
+      ...baseOptions,
+      saveName: "title",
+      jsonType: "start_array"
+    });
 
     if (titleOptionsResponse.success) {
-      const titleOptions : any = titleOptionsResponse.message // I don't understand why this has to be type 'any' but it does
+      const titleOptions: any = titleOptionsResponse.message; // I don't understand why this has to be type 'any' but it does
       const selectedAnswer: string = await select({
         message: "Pick your favorite or enter a new one: ",
-        choices: titleOptions.map((title: string) => ({
+        choices: titleOptions
+          .map((title: string) => ({
             name: title,
             value: title
           }))
@@ -365,10 +375,11 @@ async function runWizard() {
   if (themesFromUser.trim()) {
     wizardState.coreThemes = themesFromUser.trim();
   } else {
-    const themesOptionsResponse = await callLLM(
-      themesInferenceMessages,
-      { ...baseOptions, saveName: "themes", jsonType: "start_array" }
-    );
+    const themesOptionsResponse = await callLLM(themesInferenceMessages, {
+      ...baseOptions,
+      saveName: "themes",
+      jsonType: "start_array"
+    });
 
     if (themesOptionsResponse.success) {
       const selectedThemes = await checkbox({
@@ -421,10 +432,11 @@ async function runWizard() {
   if (audienceFromUser.trim()) {
     wizardState.intendedAudience = audienceFromUser.trim();
   } else {
-    const audienceOptionsResponse = await callLLM(
-      audienceInferenceMessages,
-      { ...baseOptions, saveName: "audience", jsonType: "start_array" }
-    );
+    const audienceOptionsResponse = await callLLM(audienceInferenceMessages, {
+      ...baseOptions,
+      saveName: "audience",
+      jsonType: "start_array"
+    });
 
     if (audienceOptionsResponse.success) {
       const selectedAudience: string[] = await checkbox({
@@ -480,7 +492,12 @@ async function runWizard() {
   if (questionPermission) {
     const questionsResponse = await callLLM(
       questionsMessages,
-      { ...baseOptions, saveName: "questions", jsonType: "start_array", maxOutputTokens: 2048 } // overwrites maxOutputTokens
+      {
+        ...baseOptions,
+        saveName: "questions",
+        jsonType: "start_array",
+        maxOutputTokens: 2048
+      } // overwrites maxOutputTokens
     );
 
     if (questionsResponse.success) {
@@ -590,16 +607,13 @@ async function runWizard() {
       return;
     }
 
-    const outlineResponse = await callLLM(
-      outlineQuestions,
-      { 
-        ...baseOptions, 
-        saveName: "outline", 
-        jsonType: "start_object", 
-        maxOutputTokens: 4096,
-        continueOnPartialJSON: true 
-      }
-    );
+    const outlineResponse = await callLLM(outlineQuestions, {
+      ...baseOptions,
+      saveName: "outline",
+      jsonType: "start_object",
+      maxOutputTokens: 4096,
+      continueOnPartialJSON: true
+    });
 
     if (outlineResponse.success) {
       wizardState.generatedOutline = outlineResponse.message;
@@ -878,7 +892,10 @@ async function runWizard() {
 
   saveState(wizardState);
 
-  if (AI_MODELS_INFO[wizardState.pageGenerationModel].provider === AI_MODELS_INFO[wizardState.smarterModel].provider) {
+  if (
+    AI_MODELS_INFO[wizardState.pageGenerationModel].provider ===
+    AI_MODELS_INFO[wizardState.smarterModel].provider
+  ) {
     wizardState.pageGenerationApikey = wizardState.smarterApikey;
   } else {
     // Ask for next key

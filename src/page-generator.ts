@@ -277,8 +277,8 @@ export async function generatePages(
     if (!wizardState.pageGenerationModel)
       throw new Error("No page generation model set");
 
-    const llmOptions : AICallerOptions = {
-      provider: 'anthropic',
+    const llmOptions: AICallerOptions = {
+      provider: "anthropic",
       model: wizardState.pageGenerationModel,
       maxOutputTokens: 4096,
       apiKey: wizardState.smarterApikey,
@@ -286,14 +286,10 @@ export async function generatePages(
       // systemPrompt?: string,
       saveName: `${page.levels.join(".")}.mdx`,
       saveToFilepath: pagePath,
-      prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`,
+      prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
+    };
 
-    }
-
-    await callLLM(
-      page.messages,
-      llmOptions
-    );
+    await callLLM(page.messages, llmOptions);
   }
 
   console.log(
