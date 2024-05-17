@@ -438,7 +438,9 @@ function getOpenAICostsFromText(
   outputTokensExpected: number,
   model: string
 ) {
-  const enc = encoding_for_model("gpt-4-turbo"); // To solve the problem that gpt-4o doesn't have a proper tokenizer yet
+  const tiktokenModel = AI_MODELS_INFO[model]
+    .tokenCountingModel as TiktokenModel;
+  const enc = encoding_for_model(tiktokenModel);
   const inputTokens = enc.encode(inputPrompt).length;
 
   return getProviderCostsWithTokens(inputTokens, outputTokensExpected, model);
