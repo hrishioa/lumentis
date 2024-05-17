@@ -32,18 +32,11 @@ export const AI_MODELS_UI = [
     pageDescription: "Fast and cheap - get what we pay for"
   },
   {
-    name: "OpenAI GPT-3.5 Turbo (1106)",
-    model: "gpt-3.5-turbo-1106",
-    smarterDescription:
-      "Pretty cheap, good at JSON, bit dumb for the management stuff",
-    pageDescription: "Fast, cheap, lower rate limit than Claude"
-  },
-  {
-    name: "OpenAI GPT-4 Turbo",
-    model: "gpt-4-turbo-2024-04-09",
-    smarterDescription: "Bit expensive but smart",
+    name: "OpenAI GPT-4 Omni",
+    model: "gpt-4o",
+    smarterDescription: "Worse than Opus, far better rate limits",
     pageDescription:
-      "Good for high quality docs when you need to make a lot and are willing to pay"
+      "If you like OpenAI this is the one"
   }
 ] as const;
 
@@ -72,17 +65,11 @@ export const AI_MODELS_INFO: Record<
     inputTokensPerM: 0.25,
     outputTokensPerM: 1.25
   },
-  "gpt-4-turbo-2024-04-09": {
+  "gpt-4o": {
     provider: "openai",
     tokenCountingModel: "gpt-4", // required bc OpenAI token counting is frustrating
-    inputTokensPerM: 10,
-    outputTokensPerM: 30
-  },
-  "gpt-3.5-turbo-1106": {
-    provider: "openai",
-    tokenCountingModel: "gpt-3.5-turbo", // required bc OpenAI token counting is frustrating
-    inputTokensPerM: 0.5,
-    outputTokensPerM: 1.5
+    inputTokensPerM: 5,
+    outputTokensPerM: 15
   }
 } as const;
 
