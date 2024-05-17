@@ -74,15 +74,16 @@ async function callAnthropic(
     prefix,
     jsonType,
     systemPrompt,
-    model
+    model,
+    continuing
   } = options;
 
-  if (jsonType === "start_object") {
+  if (jsonType === "start_object" && !continuing) {
     messages.push({
       role: "assistant",
       content: "{"
     });
-  } else if (jsonType === "start_array") {
+  } else if (jsonType === "start_array" && !continuing) {
     messages.push({
       role: "assistant",
       content: "["
@@ -376,7 +377,8 @@ export async function callLLM(
             apiKey,
             streamToConsole,
             saveName,
-            continueOnPartialJSON: false
+            continueOnPartialJSON: false,
+            continuing: true
           });
 
           if (continuance.success === false) {

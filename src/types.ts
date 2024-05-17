@@ -14,6 +14,7 @@ export type AICallerOptions = {
   saveToFilepath?: string;
   prefix?: string;
   continueOnPartialJSON?: boolean;
+  continuing?: boolean;
 };
 
 export type GenericMessageParam = {
