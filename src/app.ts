@@ -616,7 +616,7 @@ async function runWizard() {
     const confirmOutline = await confirm({
       message: `We're about to generate the outline (Costs $${getCallCosts(
         outlineQuestions,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
@@ -634,7 +634,7 @@ async function runWizard() {
       ...baseOptions,
       saveName: "outline",
       jsonType: "start_object",
-      maxOutputTokens: 4096,
+      maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
       continueOnPartialJSON: true
     });
 
@@ -771,7 +771,7 @@ async function runWizard() {
     const newSections = await input({
       message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getCallCosts(
         regenerateOutlineInferenceMessages,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}): `
     });
@@ -795,7 +795,7 @@ async function runWizard() {
           ...baseOptions,
           saveName: "regenerateOutline",
           jsonType: "start_object",
-          maxOutputTokens: 4096,
+          maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
           continueOnPartialJSON: true
         }
       );
