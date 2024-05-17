@@ -46,28 +46,38 @@ export const AI_MODELS_INFO: Record<
   {
     provider: "anthropic" | "openai";
     tokenCountingModel?: string;
+    totalTokenLimit: number;
+    outputTokenLimit: number;
     inputTokensPerM: number;
     outputTokensPerM;
   }
 > = {
   "claude-3-opus-20240229": {
     provider: "anthropic",
+    totalTokenLimit: 200000,
+    outputTokenLimit: 4096,
     inputTokensPerM: 15,
     outputTokensPerM: 75
   },
   "claude-3-sonnet-20240229": {
     provider: "anthropic",
+    totalTokenLimit: 200000,
+    outputTokenLimit: 4096,
     inputTokensPerM: 3,
     outputTokensPerM: 15
   },
   "claude-3-haiku-20240307": {
     provider: "anthropic",
+    totalTokenLimit: 200000,
+    outputTokenLimit: 4096,
     inputTokensPerM: 0.25,
     outputTokensPerM: 1.25
   },
   "gpt-4o": {
     provider: "openai",
     tokenCountingModel: "gpt-4", // required bc OpenAI token counting is frustrating
+    totalTokenLimit: 128000,
+    outputTokenLimit: 4096,
     inputTokensPerM: 5,
     outputTokensPerM: 15
   }

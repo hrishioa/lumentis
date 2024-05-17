@@ -216,7 +216,6 @@ export async function callLLM(
 ): Promise<AICallSuccess | AICallFailure> {
   const {
     model,
-    maxOutputTokens,
     apiKey,
     streamToConsole = false, // Set default values here
     saveName,
@@ -227,6 +226,10 @@ export async function callLLM(
     continueOnPartialJSON
   } = options;
   const provider = AI_MODELS_INFO[model].provider;
+  const maxOutputTokens = Math.min(
+    AI_MODELS_INFO[model].outputTokenLimit, 
+    options.maxOutputTokens
+  )
 
   if (AI_PROVIDERS[provider] === undefined) {
     throw new Error("Invalid provider");
@@ -425,7 +428,9 @@ function getProviderCostsWithTokens(
   return inputCost + outputCost;
 }
 
-export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
+export function getPrimarySourceBudget(model: string) {
+  const maxTokens = AI_MODELS_INFO[model].totalTokenLimit;
+  const maxOutputTokens = AI_MODELS_INFO[model].outputTokenLimit;
   const outlineMessages = getOutlineInferenceMessages(
     "This is some title",
     "",
@@ -461,9 +466,9 @@ export const CLAUDE_PRIMARYSOURCE_BUDGET = (() => {
     writingMessages.map((m) => m.content).join("\n")
   );
 
-  const OUTLINE_BUDGET = 4096 * 3;
+  const OUTLINE_BUDGET = maxOutputTokens * 3;
 
-  const WRITING_BUDGET = 4096 * 4;
+  const WRITING_BUDGET = maxOutputTokens * 4;
 
-  return 200000 - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
-})();
+  return maxTokens - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
+};

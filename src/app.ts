@@ -13,7 +13,7 @@ import {
   select
 } from "@inquirer/prompts";
 import { YoutubeTranscript } from "youtube-transcript";
-import { CLAUDE_PRIMARYSOURCE_BUDGET, callLLM, getCallCosts } from "./ai";
+import { getPrimarySourceBudget, callLLM, getCallCosts } from "./ai";
 import {
   AI_MODELS_INFO,
   AI_MODELS_UI,
@@ -194,11 +194,14 @@ async function runWizard() {
   saveState(wizardState);
 
   const primarySourceTokens = countTokens(wizardState.loadedPrimarySource);
+  const PRIMARYSOURCE_BUDGET = getPrimarySourceBudget(
+    wizardState.smarterModel
+  );
 
-  if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+  if (primarySourceTokens > PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
       message: `Your content looks a little too large by about ${
-        primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
+        primarySourceTokens - PRIMARYSOURCE_BUDGET
       } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
