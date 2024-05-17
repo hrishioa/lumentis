@@ -363,7 +363,7 @@ async function runWizard() {
   wizardState.faviconUrl = await input({
     message: "Choose your own favicon! \nPlease provide a URL only.",
     default:
-      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+      wizardState.faviconUrl || "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {

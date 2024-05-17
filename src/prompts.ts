@@ -108,7 +108,7 @@ export function getOutlineRegenerationInferenceMessages(
   newSections: string
 ): GenericMessageParam[] {
   return [
-    ...outlineGenerationMessages.slice(0, -1),
+    ...outlineGenerationMessages,
     {
       role: "assistant",
       content: JSON.stringify(selectedOutline)
@@ -245,10 +245,10 @@ export function getPageGenerationInferenceMessages(
           optionalWritingGuidelines.diagramsAndLatex.index
         )
       ]
-    : writingGuidelines.slice(0, -1);
+    : writingGuidelines;
 
   return [
-    ...outlineGenerationMessages.slice(0, -1),
+    ...outlineGenerationMessages,
     {
       role: "assistant",
       content: JSON.stringify(selectedOutline)
