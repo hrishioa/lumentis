@@ -208,7 +208,8 @@ async function callOpenAI(
   return { fullMessage, inputTokens, outputTokens };
 }
 
-// note: should we call this caLLM for fun?
+// hebe's note: should we call this caLLM for fun?
+// editor's note: no it's too on the nose
 export async function callLLM(
   messages: GenericMessageParam[],
   options: AICallerOptions
