@@ -15,39 +15,32 @@ export const NUMBER_OF_CHARACTERS_TO_FLUSH_TO_FILE = 200;
 export const AI_MODELS_UI = [
   {
     name: "Claude 3 Opus",
-    provider: "anthropic",
     model: "claude-3-opus-20240229",
     smarterDescription: "This is the ferrari. Expensive but so good.",
     pageDescription: "Smartest - Use for expensive but awesome results!"
   },
   {
     name: "Claude 3 Sonnet",
-    provider: "anthropic",
     model: "claude-3-sonnet-20240229",
     smarterDescription: "Perfectly fine!",
     pageDescription: "Middle child - still kind of expensive"
   },
   {
     name: "Claude 3 Haiku",
-    provider: "anthropic",
     model: "claude-3-haiku-20240307",
     smarterDescription: "Cheapest, not preferred for this stage",
     pageDescription: "Fast and cheap - get what we pay for"
   },
   {
     name: "OpenAI GPT-3.5 Turbo (1106)",
-    provider: "openai",
     model: "gpt-3.5-turbo-1106",
-    tokenCountingModel: "gpt-3.5-turbo", // required bc OpenAI token counting is frustrating
     smarterDescription:
       "Pretty cheap, good at JSON, bit dumb for the management stuff",
     pageDescription: "Fast, cheap, lower rate limit than Claude"
   },
   {
     name: "OpenAI GPT-4 Turbo",
-    provider: "openai",
     model: "gpt-4-turbo-2024-04-09",
-    tokenCountingModel: "gpt-4", // required bc OpenAI token counting is frustrating
     smarterDescription: "Bit expensive but smart",
     pageDescription:
       "Good for high quality docs when you need to make a lot and are willing to pay"
