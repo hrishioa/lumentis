@@ -134,6 +134,18 @@ async function callAnthropic(
   };
 }
 
+// this function handles the two common ways I've seen OpenAI return JSON
+function extractArrayFromOpenAIResponse(response: string): string {
+  const respDict = JSON.parse(response);
+  const respKeys = Object.keys(respDict);
+  if (respKeys.length === 1) {
+    return JSON.stringify(respDict[respKeys[0]]);
+  } else {
+    const arr = respKeys.map((key) => respDict[key]);
+    return JSON.stringify(arr);
+  }
+}
+
 // TODO:
 // * Implement streaming. Doesn't look like OpenAI includes token usage in stream response object though, so that becomes complicated.
 // * `json_mode` doesn't really support continuance since it always returns proper JSON objects. Need to figure out how to handle that - json mode doesn't guarantee that it will actually finish the JSON object.
@@ -155,10 +167,10 @@ async function callOpenAI(
 
   const arrayWrapperPromptAddition =
     jsonType === "start_array"
-      ? "Wrap the array in an object with the key `response`."
+      ? "\n\nPlease wrap the returned array in a JSON object with a key of 'results' to ensure proper parsing. Eg: structure the returned object as `{ \"results\": [ ... ]}`"
       : "";
 
-  if (systemPrompt) {
+  if (systemPrompt || jsonType === "start_array") {
     messages.unshift({
       role: "system",
       content: systemPrompt + arrayWrapperPromptAddition
@@ -190,7 +202,7 @@ async function callOpenAI(
   }
 
   if (jsonType === "start_array") {
-    fullMessage = JSON.stringify(JSON.parse(fullMessage).response);
+    fullMessage = extractArrayFromOpenAIResponse(fullMessage);
   }
 
   return { fullMessage, inputTokens, outputTokens };
@@ -214,6 +226,11 @@ export async function callLLM(
     continueOnPartialJSON
   } = options;
   const provider = AI_MODELS_INFO[model].provider;
+
+  if (AI_PROVIDERS[provider] === undefined) {
+    throw new Error("Invalid provider");
+  }
+
   const messageBackupSpot = path.join(lumentisFolderPath, MESSAGES_FOLDER);
 
   if (saveName) {
@@ -238,7 +255,7 @@ export async function callLLM(
     let fullMessage = "";
     let outputTokens = 0;
     let inputTokens = 0;
-    if (AI_PROVIDERS[provider] === undefined) {
+    if (AI_PROVIDERS[provider].caller === undefined) {
       throw new Error("Invalid provider");
     } else {
       const aiResponse = await AI_PROVIDERS[provider].caller(messages, options);

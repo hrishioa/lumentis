@@ -16,10 +16,6 @@ ${primarySource}
 ${description}
 
 Please generate up to 10 possible names for documentation we want to build, for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
@@ -39,10 +35,6 @@ ${primarySource}
 ${description}
 
 Please generate up to 10 words describing the intended audience for creating documentation from the data in PrimarySource (which level, what type of job, etc). Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
@@ -59,10 +51,6 @@ ${primarySource}
 </PrimarySource>
 
 Please generate up to 10 possible keywords referring to industries, technologies, people or other themes for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
@@ -110,10 +98,6 @@ ${alreadyAnsweredQuestions}
 
 We want to build proper comprehensive docs for what's in PrimarySource. Can you give me a JSON array of strings, of 10 questions about things that might be confusing, need more explanation, or color?
 `
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
@@ -135,10 +119,6 @@ export function getOutlineRegenerationInferenceMessages(
       content: `Can you regenerate the outline with the following requests or new sections? ${newSections}
 Follow the Outline typespec.
 `
-    },
-    {
-      role: "assistant",
-      content: "{"
     }
   ];
 }
@@ -209,10 +189,6 @@ type Outline = {
   sections: OutlineSection[];
 };
 `
-    },
-    {
-      role: "assistant",
-      content: "{"
     }
   ];
 }
