@@ -275,7 +275,6 @@ export async function callLLM(
     jsonType,
     saveToFilepath,
     prefix,
-    systemPrompt,
     continueOnPartialJSON
   } = options;
   let { maxOutputTokens } = options;
