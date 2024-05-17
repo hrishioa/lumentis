@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { callLLM } from "./ai";
-import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
+import { AI_MODELS_INFO, LUMENTIS_FOLDER, RUNNERS } from "./constants";
 import { AICallerOptions, ReadyToGeneratePage, WizardState } from "./types";
 
 function writeConfigFiles(directory: string, wizardState: WizardState) {
@@ -278,12 +278,11 @@ export async function generatePages(
       throw new Error("No page generation model set");
 
     const llmOptions: AICallerOptions = {
-      provider: "anthropic",
       model: wizardState.pageGenerationModel,
-      maxOutputTokens: 4096,
+      maxOutputTokens:
+        AI_MODELS_INFO[wizardState.pageGenerationModel].outputTokenLimit - 1, // To be on the safe side
       apiKey: wizardState.smarterApikey,
       streamToConsole: wizardState.streamToConsole,
-      // systemPrompt?: string,
       saveName: `${page.levels.join(".")}.mdx`,
       saveToFilepath: pagePath,
       prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
