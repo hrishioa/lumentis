@@ -13,7 +13,7 @@ import {
   select
 } from "@inquirer/prompts";
 import { YoutubeTranscript } from "youtube-transcript";
-import { getPrimarySourceBudget, callLLM, getCallCosts } from "./ai";
+import { callLLM, getCallCosts, getPrimarySourceBudget } from "./ai";
 import {
   AI_MODELS_INFO,
   AI_MODELS_UI,
@@ -194,9 +194,7 @@ async function runWizard() {
   saveState(wizardState);
 
   const primarySourceTokens = countTokens(wizardState.loadedPrimarySource);
-  const PRIMARYSOURCE_BUDGET = getPrimarySourceBudget(
-    wizardState.smarterModel
-  );
+  const PRIMARYSOURCE_BUDGET = getPrimarySourceBudget(wizardState.smarterModel);
 
   if (primarySourceTokens > PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
@@ -213,18 +211,31 @@ async function runWizard() {
     }
   }
 
+  const smarterModelProvider =
+    AI_MODELS_INFO[wizardState.smarterModel]?.provider;
+
+  if (!smarterModelProvider) {
+    console.log(
+      "Couldn't find the provider for the model you selected. Please run again?"
+    );
+    process.exit(1);
+  }
+
+  const cheapestSmartProviderModel = Object.entries(AI_MODELS_INFO)
+    .filter(([model, info]) => info.provider === smarterModelProvider)
+    .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
+
   // Ask for AI API key
 
   wizardState.smarterApikey =
     (await password({
-      message:
-        "Please enter your API key.\n (You can leave this blank if it's already in the ENV variable.): ",
+      message: `Please enter your ${smarterModelProvider.toUpperCase()} API key.\n (You can leave this blank if it's already in the ENV variable.): `,
       mask: "*",
       validate: async (key) => {
         const testResponse = await callLLM(
           [{ role: "user", content: "What is your name?" }],
           {
-            model: AI_MODELS_UI[AI_MODELS_UI.length - 1].model,
+            model: cheapestSmartProviderModel[0],
             maxOutputTokens: 10,
             apiKey: key || undefined
           }
@@ -907,6 +918,20 @@ async function runWizard() {
   ) {
     wizardState.pageGenerationApikey = wizardState.smarterApikey;
   } else {
+    const pageGenerationModelProvider =
+      AI_MODELS_INFO[wizardState.pageGenerationModel]?.provider;
+
+    if (!pageGenerationModelProvider) {
+      console.log(
+        "Couldn't find the provider for the model you selected. Please run again?"
+      );
+      process.exit(1);
+    }
+
+    const cheapestPageGenerationProviderModel = Object.entries(AI_MODELS_INFO)
+      .filter(([model, info]) => info.provider === pageGenerationModelProvider)
+      .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
+
     // Ask for next key
     wizardState.pageGenerationApikey =
       (await password({
@@ -917,7 +942,7 @@ async function runWizard() {
           const testResponse = await callLLM(
             [{ role: "user", content: "What is your name?" }],
             {
-              model: AI_MODELS_UI[AI_MODELS_UI.length - 1].model,
+              model: cheapestPageGenerationProviderModel[0],
               maxOutputTokens: 10,
               apiKey: key || undefined
             }

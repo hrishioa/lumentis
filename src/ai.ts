@@ -258,9 +258,9 @@ export async function callLLM(
   } = options;
   const provider = AI_MODELS_INFO[model].provider;
   const maxOutputTokens = Math.min(
-    AI_MODELS_INFO[model].outputTokenLimit, 
+    AI_MODELS_INFO[model].outputTokenLimit,
     options.maxOutputTokens
-  )
+  );
 
   if (AI_PROVIDERS[provider] === undefined) {
     throw new Error("Invalid provider");
@@ -502,4 +502,4 @@ export function getPrimarySourceBudget(model: string) {
   const WRITING_BUDGET = maxOutputTokens * 4;
 
   return maxTokens - (OUTLINE_BUDGET + WRITING_BUDGET + writingTokens);
-};
+}
