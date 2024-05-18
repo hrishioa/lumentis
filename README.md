@@ -8,7 +8,7 @@
 
 <h3 align="center">Generate beautiful docs from your transcripts and unstructured information with a single command.</h3>
 
-A simple way to generate comprehensive, easy-to-skim docs from your meeting transcripts and large documents.
+A simple way to generate comprehensive, easy-to-skim docs from your meeting transcripts and large documents. Now supports GPT-4 Omni and Gemini Flash!
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/hrishi?style=social)](https://twitter.com/hrishioa)
 
@@ -23,6 +23,7 @@ A simple way to generate comprehensive, easy-to-skim docs from your meeting tran
 ## How to use
 
 1. Run `npx lumentis` in an empty directory. That's really it. You can skip the rest of this README.
+(Known issue if you've run Lumentis before: clear your npx cache with `npx clear-npx-cache` or you might get link errors. If you don't want to, you can also run `npx lumentis@0.2.1-dev`.)
 (DON'T run lumentis in the cloned repo!)
 2. Feed it a transcript, doc or notes when asked.
 3. Answer some questions about themes and audience.
@@ -39,6 +40,8 @@ Lumentis lets you swap models between stages. Here's some docs exactly as Lument
 3. **[How the AI in Spiderman 2 works](https://spiderman-2-ai-mechanics.vercel.app/)** - from [something that's been on my list](https://www.youtube.com/watch?v=LxWq65CZBU8) for a long time. Opus took about $3.80 to do the whole thing.
 4. **[Sam Altman and Lex Friedman on GPT-5](https://sam-lex-gpt5.vercel.app/)** - Sam and Lex [had a conversation](https://www.youtube.com/watch?v=jvqFAi7vkBc) recently. Here's Opus doing the hard work for $2.3, and Sonnet doing the rest for $2.5. This is the expensive option.
 5. **[Self-Discover in DSPy with Chris Dossman](https://lumentis-autogen-dspy-weviate-podcast.vercel.app/)** - [an interesting conversation between Chris Dossman and Weviate](https://www.youtube.com/watch?v=iC64q1gFWiY) about DSPy and structured reasoning, one of the core concepts behind the framework. [Eugene](https://github.com/eugene-yaroslavtsev) splurged something like $25 on this 😱 because he wanted to see how Lumentis would do at its best.
+6. **[John Shulman OpenAI Podcast with GPT-4o](https://john-shulman-gpt4o-gpt4o.vercel.app/)** - generated for about $1 in less than 20 seconds with GPT-4 Omni, from [this awesome podcast](https://www.youtube.com/watch?v=Wo95ob_s_NI)!
+7. **[John Shulman Podcast with GPT-4o and Gemini Flash](https://john-shulman-gpt4o-gemini-flash.vercel.app/)** - generated for about the same in less than 10 seconds with GPT-4 Omni and Gemini Flash.
 
 ## Features
 
