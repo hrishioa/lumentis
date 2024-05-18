@@ -1,6 +1,6 @@
 {
   "name": "lumentis",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
   "description": "Create awesome docs from your transcripts, notes and documents in seconds, ready to deploy.",
   "license": "by-nc-4.0",
@@ -22,9 +22,9 @@
     "@types/node": "^20.11.30",
     "tsup": "^8.0.2"
   },
-  "main": "dist/app.js",
+  "main": "dist/app.cjs",
   "bin": {
-    "lumentis": "dist/app.js"
+    "lumentis": "dist/app.cjs"
   },
   "scripts": {
     "run": "bun src/app.ts",
