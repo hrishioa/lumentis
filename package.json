@@ -1,6 +1,6 @@
 {
   "name": "lumentis",
-  "version": "0.1.3",
+  "version": "0.1.45-dev",
   "author": "Hrishi Olickel <twitter-@hrishioa> (https://olickel.com)",
   "description": "Create awesome docs from your transcripts, notes and documents in seconds, ready to deploy.",
   "license": "by-nc-4.0",
@@ -14,13 +14,17 @@
     "typescript": "^5.4.3",
     "youtube-transcript": "^1.1.0"
   },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "engineStrict": true,
   "devDependencies": {
     "@biomejs/biome": "latest",
     "@swc/core": "^1.4.8",
     "@types/bun": "latest",
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^20.11.30",
-    "tsup": "^8.0.2"
+    "tsup": "latest"
   },
   "main": "dist/app.cjs",
   "bin": {

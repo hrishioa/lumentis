@@ -1,5 +1,5 @@
 import * as os from "node:os";
-import * as path from "node:path";
+import path from "node:path";
 import * as spawn from "cross-spawn";
 
 export async function runThunksInParallelQueue<T>(
