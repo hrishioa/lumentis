@@ -366,7 +366,8 @@ async function runWizard() {
   wizardState.faviconUrl = await input({
     message: "Choose your own favicon! \nPlease provide a URL only.",
     default:
-      wizardState.faviconUrl || "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+      wizardState.faviconUrl ||
+      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
@@ -634,7 +635,8 @@ async function runWizard() {
       ...baseOptions,
       saveName: "outline",
       jsonType: "start_object",
-      maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
+      maxOutputTokens:
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
       continueOnPartialJSON: true
     });
 
@@ -795,7 +797,8 @@ async function runWizard() {
           ...baseOptions,
           saveName: "regenerateOutline",
           jsonType: "start_object",
-          maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
+          maxOutputTokens:
+            AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
           continueOnPartialJSON: true
         }
       );

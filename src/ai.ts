@@ -334,7 +334,7 @@ export async function callLLM(
         try {
           const parsedJSON = JSON.parse(potentialPartialJSON);
           fullMessage = JSON.stringify(parsedJSON, null, 2);
-          
+
           break;
         } catch (err) {
           const partialJSON = partialParse(potentialPartialJSON);
