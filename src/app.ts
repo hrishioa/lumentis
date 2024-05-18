@@ -3,7 +3,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { countTokens } from "@anthropic-ai/tokenizer";
-import { YoutubeTranscript } from 'youtube-transcript';
 import {
   Separator,
   checkbox,
@@ -13,13 +12,11 @@ import {
   password,
   select
 } from "@inquirer/prompts";
+import { YoutubeTranscript } from "youtube-transcript";
+import { callLLM, getCallCosts, getPrimarySourceBudget } from "./ai";
 import {
-  CLAUDE_PRIMARYSOURCE_BUDGET,
-  getClaudeCosts,
-  runClaudeInference
-} from "./ai";
-import {
-  CLAUDE_MODELS,
+  AI_MODELS_INFO,
+  AI_MODELS_UI,
   EDITORS,
   LUMENTIS_FOLDER,
   RUNNERS,
@@ -39,6 +36,7 @@ import {
   getTitleInferenceMessages
 } from "./prompts";
 import {
+  AICallerOptions,
   Outline,
   OutlineSection,
   ReadyToGeneratePage,
@@ -48,8 +46,13 @@ import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 
 async function runWizard() {
   function saveState(state: WizardState) {
+    const keysToWrite = Object.keys(state).filter((k) => !k.includes("Apikey"));
+    const stateToWrite = keysToWrite.reduce((acc, key) => {
+      acc[key] = state[key];
+      return acc;
+    }, {} as WizardState);
     if (!fs.existsSync(lumentisFolderPath)) fs.mkdirSync(lumentisFolderPath);
-    fs.writeFileSync(wizardStatePath, JSON.stringify(state, null, 2));
+    fs.writeFileSync(wizardStatePath, JSON.stringify(stateToWrite, null, 2));
   }
 
   const wizardState: WizardState = fs.existsSync(wizardStatePath)
@@ -89,18 +92,21 @@ async function runWizard() {
     message:
       "Pick a model for meta inference.\n Smarter is preferred, you can use a cheaper model for the actual writing later.",
     choices: [
-      ...CLAUDE_MODELS.map((model) => ({
+      ...AI_MODELS_UI.map((model) => ({
         name: model.name,
         value: model.model,
         description: model.smarterDescription
       })),
       new Separator()
     ],
-    default: wizardState.smarterModel || CLAUDE_MODELS[0].model
+    default: wizardState.smarterModel || AI_MODELS_UI[0].model
   });
 
   saveState(wizardState);
 
+  if (AI_MODELS_INFO[wizardState.smarterModel].notes) {
+    console.log(AI_MODELS_INFO[wizardState.smarterModel].notes);
+  }
   // Ask to stream output to console
 
   wizardState.streamToConsole = await confirm({
@@ -120,24 +126,36 @@ async function runWizard() {
       "What's your primary source? \n Drag a text file (or youtube link, experimental) in here, or leave empty/whitespace to open an editor: ",
     default: wizardState.primarySourceFilename || undefined,
     validate: async (filename) => {
-      if(filename?.trim()) {
-        if((filename === wizardState.primarySourceFilename || filename === parsePlatformIndependentPath(filename)) && wizardState.loadedPrimarySource) return true;
+      if (filename?.trim()) {
+        if (
+          (filename === wizardState.primarySourceFilename ||
+            filename === parsePlatformIndependentPath(filename)) &&
+          wizardState.loadedPrimarySource
+        )
+          return true;
         if (filename.includes("youtube.com")) {
           try {
-            const transcript = await YoutubeTranscript.fetchTranscript(filename);
-            wizardState.loadedPrimarySource = transcript.map((line) => line.text).join("\n");
+            const transcript =
+              await YoutubeTranscript.fetchTranscript(filename);
+            wizardState.loadedPrimarySource = transcript
+              .map((line) => line.text)
+              .join("\n");
             wizardState.primarySourceFilename = filename;
-          } catch(err) {
+          } catch (err) {
             return `Looked like a youtube video - Couldn't fetch transcript from ${filename}: ${err}`;
           }
-        } else if(!fs.existsSync(parsePlatformIndependentPath(filename))) {
+        } else if (!fs.existsSync(parsePlatformIndependentPath(filename))) {
           return `File not found - tried to load ${filename}. Try again.`;
         } else {
           try {
-            const dataFromFile = fs.readFileSync(parsePlatformIndependentPath(filename), "utf-8");
+            const dataFromFile = fs.readFileSync(
+              parsePlatformIndependentPath(filename),
+              "utf-8"
+            );
             wizardState.loadedPrimarySource = dataFromFile;
-            wizardState.primarySourceFilename = parsePlatformIndependentPath(filename);
-          } catch(err) {
+            wizardState.primarySourceFilename =
+              parsePlatformIndependentPath(filename);
+          } catch (err) {
             return `Couldn't read file - tried to load ${filename}. Try again.`;
           }
         }
@@ -148,7 +166,7 @@ async function runWizard() {
 
   saveState(wizardState);
 
-  if(!wizardState.loadedPrimarySource) {
+  if (!wizardState.loadedPrimarySource) {
     const editorName = await select({
       message:
         "Because there's a chance you never changed $EDITOR from vim, pick an editor!",
@@ -179,11 +197,12 @@ async function runWizard() {
   saveState(wizardState);
 
   const primarySourceTokens = countTokens(wizardState.loadedPrimarySource);
+  const PRIMARYSOURCE_BUDGET = getPrimarySourceBudget(wizardState.smarterModel);
 
-  if (primarySourceTokens > CLAUDE_PRIMARYSOURCE_BUDGET) {
+  if (primarySourceTokens > PRIMARYSOURCE_BUDGET) {
     wizardState.ignorePrimarySourceSize = await confirm({
       message: `Your content looks a little too large by about ${
-        primarySourceTokens - CLAUDE_PRIMARYSOURCE_BUDGET
+        primarySourceTokens - PRIMARYSOURCE_BUDGET
       } tokens (leaving some wiggle room). Generation might fail (if it does, you can always restart and adjust the source). Continue anyway?`,
       default: wizardState.ignorePrimarySourceSize || false,
       transformer: (answer) => (answer ? "👍" : "👎")
@@ -195,19 +214,34 @@ async function runWizard() {
     }
   }
 
-  // Ask for Anthropic key
+  const smarterModelProvider =
+    AI_MODELS_INFO[wizardState.smarterModel]?.provider;
 
-  wizardState.anthropicKey =
+  if (!smarterModelProvider) {
+    console.log(
+      "Couldn't find the provider for the model you selected. Please run again?"
+    );
+    process.exit(1);
+  }
+
+  const cheapestSmartProviderModel = Object.entries(AI_MODELS_INFO)
+    .filter(([model, info]) => info.provider === smarterModelProvider)
+    .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
+
+  // Ask for AI API key
+
+  wizardState.smarterApikey =
     (await password({
-      message:
-        "Please enter an Anthropic API key.\n (You can leave this blank if it's already in the ENV variable.): ",
+      message: `Please enter your ${smarterModelProvider.toUpperCase()} API key.\n (You can leave this blank if it's already in the ENV variable.): `,
       mask: "*",
       validate: async (key) => {
-        const testResponse = await runClaudeInference(
+        const testResponse = await callLLM(
           [{ role: "user", content: "What is your name?" }],
-          CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model,
-          10,
-          key || undefined
+          {
+            model: cheapestSmartProviderModel[0],
+            maxOutputTokens: 10,
+            apiKey: key || undefined
+          }
         );
 
         if (testResponse.success) return true;
@@ -219,12 +253,19 @@ async function runWizard() {
 
   // Ask for source description
 
+  const baseOptions: AICallerOptions = {
+    model: wizardState.smarterModel,
+    maxOutputTokens: 2048,
+    apiKey: wizardState.smarterApikey,
+    streamToConsole: wizardState.streamToConsole
+  };
+
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
     wizardState.loadedPrimarySource
   );
 
   const description = await input({
-    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short description of your source?\n Who's talking, what type of content is it etc.\n (Leave empty to generate - costs $${getCallCosts(
       descriptionInferenceMessages,
       700,
       wizardState.smarterModel
@@ -235,21 +276,17 @@ async function runWizard() {
   if (description.trim()) {
     wizardState.description = description;
   } else {
-    const generatedDescription = await runClaudeInference(
-      descriptionInferenceMessages,
-      wizardState.smarterModel,
-      700,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "description"
-    );
+    const generatedDescription = await callLLM(descriptionInferenceMessages, {
+      ...baseOptions,
+      saveName: "description"
+    });
 
     if (generatedDescription.success) {
       console.log(
-        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.response}\n\n`
+        `Generated description \n(edit this in ${wizardStatePath} if you need to and restart!): ${generatedDescription.message}\n\n`
       );
 
-      wizardState.description = generatedDescription.response;
+      wizardState.description = generatedDescription.message;
     } else {
       wizardState.description = await input({
         message: `Couldn't generate. Please type one in? `,
@@ -272,7 +309,7 @@ async function runWizard() {
   // Ask for title
 
   const title = await input({
-    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have a short title or name?\n (Leave empty to generate - costs $${getCallCosts(
       titleInferenceMessages,
       400,
       wizardState.smarterModel
@@ -283,29 +320,28 @@ async function runWizard() {
   if (title.trim()) {
     wizardState.title = title;
   } else {
-    const titleOptionsResponse = await runClaudeInference(
-      titleInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "title",
-      "started_array"
-    );
+    // note: changed maxtokens from 800 to 700, don't think the title needs more than the description
+    const titleOptionsResponse = await callLLM(titleInferenceMessages, {
+      ...baseOptions,
+      saveName: "title",
+      jsonType: "start_array"
+    });
 
     if (titleOptionsResponse.success) {
+      const titleOptions: string[] = titleOptionsResponse.message; // I don't understand why this has to be type 'any' but it does
       const selectedAnswer: string = await select({
         message: "Pick your favorite or enter a new one: ",
-        choices: titleOptionsResponse.response
-          .map((title: string) => ({
+        choices: [
+          ...titleOptions.map((title: string) => ({
             name: title,
             value: title
-          }))
-          .concat([
+          })),
+          ...[
             new Separator(),
             { name: "Enter a new one", value: "__new__" },
             new Separator()
-          ])
+          ]
+        ]
       });
 
       wizardState.title =
@@ -330,7 +366,7 @@ async function runWizard() {
   wizardState.faviconUrl = await input({
     message: "Choose your own favicon! \nPlease provide a URL only.",
     default:
-      "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
+      wizardState.faviconUrl || "https://raw.githubusercontent.com/HebeHH/lumentis/choose-favicon/assets/default-favicon.png",
     // change the default to the permanent raw URL of assets/default-favicon.png, once on github
     validate: (favicon_url) => {
       if (!urlPattern.test(favicon_url.trim())) {
@@ -351,7 +387,7 @@ async function runWizard() {
   );
 
   const themesFromUser = await input({
-    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any core themes or keywords about the source or the intended audience?\n (Leave empty to generate - costs $${getCallCosts(
       themesInferenceMessages,
       400,
       wizardState.smarterModel
@@ -362,20 +398,16 @@ async function runWizard() {
   if (themesFromUser.trim()) {
     wizardState.coreThemes = themesFromUser.trim();
   } else {
-    const themesOptionsResponse = await runClaudeInference(
-      themesInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "themes",
-      "started_array"
-    );
+    const themesOptionsResponse = await callLLM(themesInferenceMessages, {
+      ...baseOptions,
+      saveName: "themes",
+      jsonType: "start_array"
+    });
 
     if (themesOptionsResponse.success) {
       const selectedThemes = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: themesOptionsResponse.response.map((theme: string) => ({
+        choices: themesOptionsResponse.message.map((theme: string) => ({
           name: theme,
           value: theme,
           checked: true
@@ -410,7 +442,7 @@ async function runWizard() {
   );
 
   const audienceFromUser = await input({
-    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getClaudeCosts(
+    message: `Do you have any intended audience in mind?\n (Leave empty to generate - costs $${getCallCosts(
       audienceInferenceMessages,
       400,
       wizardState.smarterModel
@@ -423,20 +455,16 @@ async function runWizard() {
   if (audienceFromUser.trim()) {
     wizardState.intendedAudience = audienceFromUser.trim();
   } else {
-    const audienceOptionsResponse = await runClaudeInference(
-      audienceInferenceMessages,
-      wizardState.smarterModel,
-      800,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "audience",
-      "started_array"
-    );
+    const audienceOptionsResponse = await callLLM(audienceInferenceMessages, {
+      ...baseOptions,
+      saveName: "audience",
+      jsonType: "start_array"
+    });
 
     if (audienceOptionsResponse.success) {
       const selectedAudience: string[] = await checkbox({
         message: "Deselect any you don't want: ",
-        choices: audienceOptionsResponse.response.map((audience: string) => ({
+        choices: audienceOptionsResponse.message.map((audience: string) => ({
           name: audience,
           value: audience,
           checked: true
@@ -475,7 +503,7 @@ async function runWizard() {
   const questionPermission = await confirm({
     message: `Are you okay ${
       wizardState.ambiguityExplained ? "re" : ""
-    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getClaudeCosts(
+    }answering some questions about things that might not be well explained in the primary source?\n (Costs ${getCallCosts(
       questionsMessages,
       2048,
       wizardState.smarterModel
@@ -485,14 +513,14 @@ async function runWizard() {
   });
 
   if (questionPermission) {
-    const questionsResponse = await runClaudeInference(
+    const questionsResponse = await callLLM(
       questionsMessages,
-      wizardState.smarterModel,
-      2048,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "questions",
-      "started_array"
+      {
+        ...baseOptions,
+        saveName: "questions",
+        jsonType: "start_array",
+        maxOutputTokens: 2048
+      } // overwrites maxOutputTokens
     );
 
     if (questionsResponse.success) {
@@ -517,7 +545,7 @@ async function runWizard() {
       const dataFromEditor = await editor({
         message: `Opening ${process.env.EDITOR} to answer:`,
         waitForUseInput: false,
-        default: `Here are some questions: \n${questionsResponse.response
+        default: `Here are some questions: \n${questionsResponse.message
           .map(
             (question: string, index: number) =>
               `${index + 1}. ${question}\n\nAnswer: \n\n`
@@ -586,9 +614,9 @@ async function runWizard() {
 
   if (!wizardState.generatedOutline || previousOutlineInvalidated) {
     const confirmOutline = await confirm({
-      message: `We're about to generate the outline (Costs $${getClaudeCosts(
+      message: `We're about to generate the outline (Costs $${getCallCosts(
         outlineQuestions,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}). Confirm: `,
       default: true,
@@ -602,21 +630,16 @@ async function runWizard() {
       return;
     }
 
-    const outlineResponse = await runClaudeInference(
-      outlineQuestions,
-      wizardState.smarterModel,
-      4096,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      "outline",
-      "started_object",
-      undefined,
-      undefined,
-      true
-    );
+    const outlineResponse = await callLLM(outlineQuestions, {
+      ...baseOptions,
+      saveName: "outline",
+      jsonType: "start_object",
+      maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
+      continueOnPartialJSON: true
+    });
 
     if (outlineResponse.success) {
-      wizardState.generatedOutline = outlineResponse.response;
+      wizardState.generatedOutline = outlineResponse.message;
     } else {
       console.log(
         "Couldn't generate the outline. You can run me again to retry."
@@ -746,9 +769,9 @@ async function runWizard() {
     if (!wizardState.outlineComments) wizardState.outlineComments = "";
 
     const newSections = await input({
-      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getClaudeCosts(
+      message: `Are there any sections you'd like to add or things to change? (Blank to accept, regneration costs ~${getCallCosts(
         regenerateOutlineInferenceMessages,
-        4096,
+        AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
         wizardState.smarterModel
       ).toFixed(4)}): `
     });
@@ -766,23 +789,21 @@ async function runWizard() {
           tempOutlineComments
         );
 
-      const newSectionsResponse = await runClaudeInference(
+      const newSectionsResponse = await callLLM(
         regenerateOutlineInferenceMessages,
-        wizardState.smarterModel,
-        4096,
-        wizardState.anthropicKey,
-        wizardState.streamToConsole,
-        "regenerateOutline",
-        "started_object",
-        undefined,
-        undefined,
-        true
+        {
+          ...baseOptions,
+          saveName: "regenerateOutline",
+          jsonType: "start_object",
+          maxOutputTokens: AI_MODELS_INFO[wizardState.smarterModel].outputTokenLimit - 1,
+          continueOnPartialJSON: true
+        }
       );
 
       if (newSectionsResponse.success) {
         wizardState.outlineComments = tempOutlineComments;
 
-        wizardState.generatedOutline = newSectionsResponse.response;
+        wizardState.generatedOutline = newSectionsResponse.message;
 
         saveState(wizardState);
       } else {
@@ -869,16 +890,16 @@ async function runWizard() {
     wizardState.addDiagrams
   );
 
-  const costs = CLAUDE_MODELS.map((model) =>
+  const costs = AI_MODELS_UI.map((model) =>
     pageWritingMessages
-      .map((page) => getClaudeCosts(page.messages, 4096, model.model))
+      .map((page) => getCallCosts(page.messages, 4096, model.model))
       .reduce((a, b) => a + b, 0)
   );
 
   wizardState.pageGenerationModel = await select({
     message: `We can finally start writing our ${pageWritingMessages.length} pages! Pick a model to generate content: `,
     choices: [
-      ...CLAUDE_MODELS.map((model, index) => ({
+      ...AI_MODELS_UI.map((model, index) => ({
         name: model.name,
         value: model.model,
         description: `${model.pageDescription} (costs $${costs[index].toFixed(
@@ -889,9 +910,61 @@ async function runWizard() {
     ],
     default:
       wizardState.pageGenerationModel ||
-      CLAUDE_MODELS[CLAUDE_MODELS.length - 1].model
+      AI_MODELS_UI[AI_MODELS_UI.length - 1].model
   });
 
+  saveState(wizardState);
+
+  if (
+    AI_MODELS_INFO[wizardState.pageGenerationModel].notes &&
+    wizardState.pageGenerationModel !== wizardState.smarterModel
+  ) {
+    console.log(AI_MODELS_INFO[wizardState.pageGenerationModel].notes);
+  }
+
+  if (
+    AI_MODELS_INFO[wizardState.pageGenerationModel].provider ===
+    AI_MODELS_INFO[wizardState.smarterModel].provider
+  ) {
+    wizardState.pageGenerationApikey = wizardState.smarterApikey;
+  } else {
+    const pageGenerationModelProvider =
+      AI_MODELS_INFO[wizardState.pageGenerationModel]?.provider;
+
+    if (!pageGenerationModelProvider) {
+      console.log(
+        "Couldn't find the provider for the model you selected. Please run again?"
+      );
+      process.exit(1);
+    }
+
+    const cheapestPageGenerationProviderModel = Object.entries(AI_MODELS_INFO)
+      .filter(([model, info]) => info.provider === pageGenerationModelProvider)
+      .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
+
+    // Ask for next key
+    wizardState.pageGenerationApikey =
+      (await password({
+        message:
+          "It looks like you want to use a different provider! We'll need a new API key for that:.\n (You can leave this blank if it's already in the ENV variable.): ",
+        mask: "*",
+        validate: async (key) => {
+          const testResponse = await callLLM(
+            [{ role: "user", content: "What is your name?" }],
+            {
+              model: cheapestPageGenerationProviderModel[0],
+              maxOutputTokens: 10,
+              apiKey: key || undefined
+            }
+          );
+
+          if (testResponse.success) return true;
+
+          if (key.trim()) return `Your key didn't work. Try again?`;
+          else return `The key in your env didn't work. Try again?`;
+        }
+      })) || undefined;
+  }
   saveState(wizardState);
 
   if (!wizardState.preferredRunnerForNextra) {
@@ -942,16 +1015,33 @@ async function runWizard() {
     );
   }
 
-  const finalCheck = await confirm({
-    message: "#######\n\nReady to start? ",
-    default: true,
-    transformer: (answer) => (answer ? "👍" : "👎")
+  const parallelPagesToGenerate = await select({
+    message:
+      "\n\n##############\n\nReady to start. How many pages do you want to generate simultaneously?",
+    choices: [
+      {
+        name: "1",
+        value: 1,
+        description:
+          "Safest - we'll go one page at a time. Only one suitable for Claude at the moment."
+      },
+      {
+        name: "2",
+        value: 2,
+        description: "A little faster"
+      },
+      {
+        name: "5",
+        value: 5,
+        description: "Whoa there"
+      },
+      {
+        name: "All",
+        value: 0,
+        description: "Use at your own risk - bloody fast!"
+      }
+    ]
   });
-
-  if (!finalCheck) {
-    console.log("No problem! You know where to find me.");
-    return;
-  }
 
   console.log(
     "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
@@ -961,7 +1051,8 @@ async function runWizard() {
     true,
     pageWritingMessages,
     path.join(docsFolder, "pages"),
-    wizardState
+    wizardState,
+    parallelPagesToGenerate
   );
 }
 
