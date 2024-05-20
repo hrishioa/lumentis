@@ -2,9 +2,16 @@ import { exec, execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-import { runClaudeInference } from "./ai";
-import { LUMENTIS_FOLDER, RUNNERS } from "./constants";
-import { ReadyToGeneratePage, WizardState } from "./types";
+import { callLLM } from "./ai";
+import { AI_MODELS_INFO, LUMENTIS_FOLDER, RUNNERS } from "./constants";
+import {
+  AICallFailure,
+  AICallSuccess,
+  AICallerOptions,
+  ReadyToGeneratePage,
+  WizardState
+} from "./types";
+import { runThunksInParallelQueue } from "./utils";
 
 function writeConfigFiles(directory: string, wizardState: WizardState) {
   let packageJSON = fs.existsSync(path.join(directory, "package.json"))
@@ -187,7 +194,8 @@ export async function generatePages(
   startNextra: boolean,
   pages: ReadyToGeneratePage[],
   pagesFolder: string,
-  wizardState: WizardState
+  wizardState: WizardState,
+  parallelJobs = 1
 ) {
   if (!fs.existsSync(pagesFolder)) {
     throw new Error(`Pages folder ${pagesFolder} does not exist`);
@@ -219,6 +227,9 @@ export async function generatePages(
       process.exit();
     });
   }
+
+  const pageWritingThunks: (() => Promise<AICallSuccess | AICallFailure>)[] =
+    [];
 
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
@@ -277,18 +288,24 @@ export async function generatePages(
     if (!wizardState.pageGenerationModel)
       throw new Error("No page generation model set");
 
-    await runClaudeInference(
-      page.messages,
-      wizardState.pageGenerationModel,
-      4096,
-      wizardState.anthropicKey,
-      wizardState.streamToConsole,
-      `${page.levels.join(".")}.mdx`,
-      undefined,
-      pagePath,
-      `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
-    );
+    const llmOptions: AICallerOptions = {
+      model: wizardState.pageGenerationModel,
+      maxOutputTokens:
+        AI_MODELS_INFO[wizardState.pageGenerationModel].outputTokenLimit - 1, // To be on the safe side
+      apiKey: wizardState.smarterApikey,
+      streamToConsole: wizardState.streamToConsole,
+      saveName: `${page.levels.join(".")}.mdx`,
+      saveToFilepath: pagePath,
+      prefix: `import { Callout, Steps, Step } from "nextra-theme-docs";\n\n`
+    };
+
+    pageWritingThunks.push(() => callLLM(page.messages, llmOptions));
   }
+
+  await runThunksInParallelQueue(
+    pageWritingThunks,
+    parallelJobs || pageWritingThunks.length
+  );
 
   console.log(
     `\n\nAND WE'RE DONE! Run \`${preferredRunner.command} run dev\` to start the docs server once you quit. You can always rerun Lumentis to make changes.

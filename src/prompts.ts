@@ -1,10 +1,10 @@
-import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { Outline, OutlineSection } from "./types";
+// import type { MessageParam } from "@anthropic-ai/sdk/resources";
+import { GenericMessageParam, Outline, OutlineSection } from "./types";
 
 export function getTitleInferenceMessages(
   primarySource: string,
   description: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -16,10 +16,6 @@ ${primarySource}
 ${description}
 
 Please generate up to 10 possible names for documentation we want to build, for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
@@ -27,7 +23,7 @@ Please generate up to 10 possible names for documentation we want to build, for 
 export function getAudienceInferenceMessages(
   primarySource: string,
   description: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -39,17 +35,13 @@ ${primarySource}
 ${description}
 
 Please generate up to 10 words describing the intended audience for creating documentation from the data in PrimarySource (which level, what type of job, etc). Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
 
 export function getThemeInferenceMessages(
   primarySource: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -59,17 +51,13 @@ ${primarySource}
 </PrimarySource>
 
 Please generate up to 10 possible keywords referring to industries, technologies, people or other themes for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
 
 export function getDescriptionInferenceMessages(
   primarySource: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -88,7 +76,7 @@ export function getQuestionsInferenceMessages(
   primarySource: string,
   description: string,
   alreadyAnsweredQuestions?: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -110,21 +98,17 @@ ${alreadyAnsweredQuestions}
 
 We want to build proper comprehensive docs for what's in PrimarySource. Can you give me a JSON array of strings, of 10 questions about things that might be confusing, need more explanation, or color?
 `
-    },
-    {
-      role: "assistant",
-      content: "["
     }
   ];
 }
 
 export function getOutlineRegenerationInferenceMessages(
-  outlineGenerationMessages: MessageParam[],
+  outlineGenerationMessages: GenericMessageParam[],
   selectedOutline: Outline,
   newSections: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
-    ...outlineGenerationMessages.slice(0, -1),
+    ...outlineGenerationMessages,
     {
       role: "assistant",
       content: JSON.stringify(selectedOutline)
@@ -135,10 +119,6 @@ export function getOutlineRegenerationInferenceMessages(
       content: `Can you regenerate the outline with the following requests or new sections? ${newSections}
 Follow the Outline typespec.
 `
-    },
-    {
-      role: "assistant",
-      content: "{"
     }
   ];
 }
@@ -151,7 +131,7 @@ export function getOutlineInferenceMessages(
   intendedAudience: string,
   ambiguityExplained?: string,
   writingExample?: string
-): MessageParam[] {
+): GenericMessageParam[] {
   return [
     // prettier-ignore
     {
@@ -200,6 +180,7 @@ type OutlineSection = {
   title: string;
   permalink: string; // something easier to use as identifier
   singleSentenceDescription: string;
+  keythingsToCover:string[]; very short strings to list things you want to make sure are covered in this section.
   subsections?: OutlineSection[];
 };
 
@@ -208,10 +189,6 @@ type Outline = {
   sections: OutlineSection[];
 };
 `
-    },
-    {
-      role: "assistant",
-      content: "{"
     }
   ];
 }
@@ -247,16 +224,16 @@ Contents
   "Each subsection and section will have its own page. Just write the specific one you're asked to write.",
   "Be casually direct, confident and straightforward. Use appropriate examples when needed.",
   "Add links to subsections or other sections. The links should be in the format of [linktext](/section-permalink/subsection-permalink). Use / as the permalink for the intro section.",
-  "Provide examples when needed.",
+  "Provide examples when needed. Use the source when you can, quoted (if you can attribute) or otherwise.",
   "Make sure to start headings in each section and subsection at the top level (#)."
 ];
 
 export function getPageGenerationInferenceMessages(
-  outlineGenerationMessages: MessageParam[],
+  outlineGenerationMessages: GenericMessageParam[],
   selectedOutline: Outline,
   selectedSection: OutlineSection,
   addDiagrams: boolean
-): MessageParam[] {
+): GenericMessageParam[] {
   const actualWritingGuidelines = addDiagrams
     ? [
         ...writingGuidelines.slice(
@@ -268,10 +245,10 @@ export function getPageGenerationInferenceMessages(
           optionalWritingGuidelines.diagramsAndLatex.index
         )
       ]
-    : writingGuidelines.slice(0, -1);
+    : writingGuidelines;
 
   return [
-    ...outlineGenerationMessages.slice(0, -1),
+    ...outlineGenerationMessages,
     {
       role: "assistant",
       content: JSON.stringify(selectedOutline)
