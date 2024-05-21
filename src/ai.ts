@@ -78,16 +78,22 @@ async function callAnthropic(
     continuing
   } = options;
 
+  let modifiedMessages = messages;
+
   if (jsonType === "start_object" && !continuing) {
-    messages.push({
-      role: "assistant",
-      content: "{"
-    });
+    modifiedMessages = messages.concat([
+      {
+        role: "assistant",
+        content: "{"
+      }
+    ]);
   } else if (jsonType === "start_array" && !continuing) {
-    messages.push({
-      role: "assistant",
-      content: "["
-    });
+    modifiedMessages = messages.concat([
+      {
+        role: "assistant",
+        content: "["
+      }
+    ]);
   }
 
   let outputTokens = 0;
@@ -98,7 +104,7 @@ async function callAnthropic(
   const anthropic = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
 
   const response = await anthropic.messages.create({
-    messages: messages as MessageParam[],
+    messages: modifiedMessages as MessageParam[],
     model,
     system: systemPrompt ? systemPrompt : "",
     max_tokens: maxOutputTokens,
