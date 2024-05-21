@@ -62,46 +62,6 @@ const AI_PROVIDERS: {
   }
 };
 
-let rateLimitCount = 0
-let lastRateLimitTime = 0
-let inRateLimit = false
-let rateLimitQuit = false
-
-function startRateLimit(ratelimited) {
-  if (!ratelimited) {
-    rateLimitCount = 0
-    return true
-  }
-  const currentTime = Date.now()
-  inRateLimit = true
-  if (currentTime - lastRateLimitTime > 10000) {
-    rateLimitCount += 1
-    lastRateLimitTime = currentTime
-  }
-  if (rateLimitCount > 5) {
-    console.log("The API provider seems to have rate limited you. Please try again later.")
-    rateLimitQuit = true
-    inRateLimit = false
-    return false
-  }
-  console.log("Rate limit hit. Waiting 30 seconds.")
-  setTimeout(() => {
-    console.log("Resuming.")
-    inRateLimit = false
-  }, 30000)
-  return true
-}
-
-async function waitRateLimit() {
-  while (inRateLimit && !rateLimitQuit) {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-  }
-  if (rateLimitQuit) {
-    return false
-  }
-  return true
-}
-
 async function callAnthropic(
   messages: GenericMessageParam[],
   options: AICallerOptions
@@ -118,22 +78,16 @@ async function callAnthropic(
     continuing
   } = options;
 
-  let modifiedMessages = messages;
-
   if (jsonType === "start_object" && !continuing) {
-    modifiedMessages = messages.concat([
-      {
-        role: "assistant",
-        content: "{"
-      }
-    ]);
+    messages.push({
+      role: "assistant",
+      content: "{"
+    });
   } else if (jsonType === "start_array" && !continuing) {
-    modifiedMessages = messages.concat([
-      {
-        role: "assistant",
-        content: "["
-      }
-    ]);
+    messages.push({
+      role: "assistant",
+      content: "["
+    });
   }
 
   let outputTokens = 0;
@@ -144,7 +98,7 @@ async function callAnthropic(
   const anthropic = apiKey ? new Anthropic({ apiKey }) : new Anthropic();
 
   const response = await anthropic.messages.create({
-    messages: modifiedMessages as MessageParam[],
+    messages: messages as MessageParam[],
     model,
     system: systemPrompt ? systemPrompt : "",
     max_tokens: maxOutputTokens,
@@ -153,7 +107,8 @@ async function callAnthropic(
 
   if (streamToConsole)
     process.stdout.write(
-      `\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
 
@@ -256,7 +211,8 @@ async function callOpenAI(
 
   if (streamToConsole) {
     process.stdout.write(
-      `\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
   }
@@ -322,12 +278,6 @@ export async function callLLM(
     continueOnPartialJSON
   } = options;
   let { maxOutputTokens } = options;
-
-  const canProceed = waitRateLimit()
-
-  if (!canProceed) {
-    throw new Error("Cannot proceed due to rate limit")
-  }
 
   process.stdout.write("\n\nCalling AI\n\n");
   const provider = AI_MODELS_INFO[model].provider;
@@ -467,7 +417,6 @@ export async function callLLM(
     //   output: getCallCostsWithTokens(0, outputTokens, provider, model)
     // }
 
-    startRateLimit(false)
     return {
       success: true,
       outputTokens,
@@ -483,16 +432,11 @@ export async function callLLM(
       errText.toLowerCase().includes("rate limit") ||
       errText.toLowerCase().includes("ratelimit")
     ) {
-      startRateLimit(true)
-      if (!rateLimitQuit) {
-        return callLLM(messages, options);
-      } else {
-        return {
-          success: false,
-          rateLimited: true,
-          error: errText
-        };
-      }
+      return {
+        success: false,
+        rateLimited: true,
+        error: errText
+      };
     }
     return {
       success: false,
@@ -667,7 +611,8 @@ async function callGemini(
 
   if (streamToConsole) {
     process.stdout.write(
-      `\n\nStreaming from ${model}${saveToFilepath ? ` to ${saveToFilepath}` : ""
+      `\n\nStreaming from ${model}${
+        saveToFilepath ? ` to ${saveToFilepath}` : ""
       }: `
     );
   }
