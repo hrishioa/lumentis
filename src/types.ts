@@ -97,4 +97,6 @@ export type WizardState = Partial<{
   preferredRunnerForNextra: (typeof RUNNERS)[number]["command"];
   overwritePages: boolean;
   faviconUrl: string;
+  parallelPagesToGenerate: number;
+  docGenerationStarted: boolean;
 }>;

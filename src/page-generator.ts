@@ -194,9 +194,9 @@ export async function generatePages(
   startNextra: boolean,
   pages: ReadyToGeneratePage[],
   pagesFolder: string,
-  wizardState: WizardState,
-  parallelJobs = 1
+  wizardState: WizardState
 ) {
+  const parallelJobs = wizardState.parallelPagesToGenerate || 1;
   if (!fs.existsSync(pagesFolder)) {
     throw new Error(`Pages folder ${pagesFolder} does not exist`);
   }
@@ -292,7 +292,7 @@ export async function generatePages(
       model: wizardState.pageGenerationModel,
       maxOutputTokens:
         AI_MODELS_INFO[wizardState.pageGenerationModel].outputTokenLimit - 1, // To be on the safe side
-      apiKey: wizardState.smarterApikey,
+      apiKey: wizardState.pageGenerationApikey,
       streamToConsole: wizardState.streamToConsole,
       saveName: `${page.levels.join(".")}.mdx`,
       saveToFilepath: pagePath,

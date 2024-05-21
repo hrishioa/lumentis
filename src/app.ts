@@ -214,42 +214,8 @@ async function runWizard() {
     }
   }
 
-  const smarterModelProvider =
-    AI_MODELS_INFO[wizardState.smarterModel]?.provider;
-
-  if (!smarterModelProvider) {
-    console.log(
-      "Couldn't find the provider for the model you selected. Please run again?"
-    );
-    process.exit(1);
-  }
-
-  const cheapestSmartProviderModel = Object.entries(AI_MODELS_INFO)
-    .filter(([model, info]) => info.provider === smarterModelProvider)
-    .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
-
   // Ask for AI API key
-
-  wizardState.smarterApikey =
-    (await password({
-      message: `Please enter your ${smarterModelProvider.toUpperCase()} API key.\n (You can leave this blank if it's already in the ENV variable.): `,
-      mask: "*",
-      validate: async (key) => {
-        const testResponse = await callLLM(
-          [{ role: "user", content: "What is your name?" }],
-          {
-            model: cheapestSmartProviderModel[0],
-            maxOutputTokens: 10,
-            apiKey: key || undefined
-          }
-        );
-
-        if (testResponse.success) return true;
-
-        if (key.trim()) return `Your key didn't work. Try again?`;
-        else return `The key in your env didn't work. Try again?`;
-      }
-    })) || undefined;
+  wizardState.smarterApikey = await getAndCheckApikey(wizardState.smarterModel);
 
   // Ask for source description
 
@@ -864,27 +830,34 @@ async function runWizard() {
     });
   }
 
-  const cleanedOutline: Outline = JSON.parse(
-    JSON.stringify(wizardState.generatedOutline)
-  );
+  function getCleanedOutline() {
+    const cleanedOutline: Outline = JSON.parse(
+      JSON.stringify(wizardState.generatedOutline)
+    );
 
-  cleanedOutline.sections = deleteDisabledSectionsAndClean(
-    cleanedOutline.sections
-  );
+    cleanedOutline.sections = deleteDisabledSectionsAndClean(
+      cleanedOutline.sections
+    );
 
-  // TODO: I know this is a bad place to put this function
-  // but it's like 2 am
-  function setPermalinksToRelatives(section: OutlineSection, levels: string[]) {
-    section.subsections?.forEach((subsection, i) => {
-      setPermalinksToRelatives(subsection, [...levels, section.permalink]);
-    });
-    section.permalink = `/${[...levels, section.permalink].join("/")}`;
+    // TODO: I know this is a bad place to put this function
+    // but it's like 2 am
+    function setPermalinksToRelatives(
+      section: OutlineSection,
+      levels: string[]
+    ) {
+      section.subsections?.forEach((subsection, i) => {
+        setPermalinksToRelatives(subsection, [...levels, section.permalink]);
+      });
+      section.permalink = `/${[...levels, section.permalink].join("/")}`;
+    }
+
+    for (const section of cleanedOutline.sections) {
+      setPermalinksToRelatives(section, []);
+    }
+    return cleanedOutline;
   }
 
-  for (const section of cleanedOutline.sections) {
-    setPermalinksToRelatives(section, []);
-  }
-
+  const cleanedOutline = getCleanedOutline();
   console.log("\nCalculating final writing costs...\n");
 
   const pageWritingMessages = getPageWritingMessages(
@@ -931,42 +904,11 @@ async function runWizard() {
   ) {
     wizardState.pageGenerationApikey = wizardState.smarterApikey;
   } else {
-    const pageGenerationModelProvider =
-      AI_MODELS_INFO[wizardState.pageGenerationModel]?.provider;
-
-    if (!pageGenerationModelProvider) {
-      console.log(
-        "Couldn't find the provider for the model you selected. Please run again?"
-      );
-      process.exit(1);
-    }
-
-    const cheapestPageGenerationProviderModel = Object.entries(AI_MODELS_INFO)
-      .filter(([model, info]) => info.provider === pageGenerationModelProvider)
-      .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
-
     // Ask for next key
-    wizardState.pageGenerationApikey =
-      (await password({
-        message:
-          "It looks like you want to use a different provider! We'll need a new API key for that:.\n (You can leave this blank if it's already in the ENV variable.): ",
-        mask: "*",
-        validate: async (key) => {
-          const testResponse = await callLLM(
-            [{ role: "user", content: "What is your name?" }],
-            {
-              model: cheapestPageGenerationProviderModel[0],
-              maxOutputTokens: 10,
-              apiKey: key || undefined
-            }
-          );
-
-          if (testResponse.success) return true;
-
-          if (key.trim()) return `Your key didn't work. Try again?`;
-          else return `The key in your env didn't work. Try again?`;
-        }
-      })) || undefined;
+    wizardState.pageGenerationApikey = await getAndCheckApikey(
+      wizardState.pageGenerationModel,
+      "It looks like you want to use a different provider! We'll need a new API key for that:.\n (You can leave this blank if it's already in the ENV variable.): "
+    );
   }
   saveState(wizardState);
 
@@ -1018,7 +960,7 @@ async function runWizard() {
     );
   }
 
-  const parallelPagesToGenerate = await select({
+  wizardState.parallelPagesToGenerate = await select({
     message:
       "\n\n##############\n\nReady to start. How many pages do you want to generate simultaneously?",
     choices: [
@@ -1050,13 +992,56 @@ async function runWizard() {
     "\n\nAnd we're off! If this helps do find https://github.com/hrishioa/lumentis and drop a star!\n\n"
   );
 
+  wizardState.docGenerationStarted = true;
+  saveState(wizardState);
+
   await generatePages(
     true,
     pageWritingMessages,
     path.join(docsFolder, "pages"),
-    wizardState,
-    parallelPagesToGenerate
+    wizardState
   );
+}
+
+async function getAndCheckApikey(
+  model,
+  promptText: string | undefined = undefined
+) {
+  const provider = AI_MODELS_INFO[model]?.provider;
+  if (!provider) {
+    console.log(
+      "Couldn't find the provider for the model you selected. Please run again?"
+    );
+    process.exit(1);
+  }
+  const cheapestProviderModel = Object.entries(AI_MODELS_INFO)
+    .filter(([model, info]) => info.provider === provider)
+    .sort((a, b) => a[1].outputTokensPerM - b[1].outputTokensPerM)[0];
+
+  const userApikey =
+    (await password({
+      message:
+        promptText ||
+        `Please enter your ${provider.toUpperCase()} API key.\n (You can leave this blank if it's already in the ENV variable.): `,
+      mask: "*",
+      validate: async (key) => {
+        const testResponse = await callLLM(
+          [{ role: "user", content: "What is your name?" }],
+          {
+            model: cheapestProviderModel[0],
+            maxOutputTokens: 10,
+            apiKey: key || undefined
+          }
+        );
+
+        if (testResponse.success) return true;
+
+        if (key.trim()) return `Your key didn't work. Try again?`;
+        else return `The key in your env didn't work. Try again?`;
+      }
+    })) || undefined;
+
+  return userApikey;
 }
 
 runWizard();
