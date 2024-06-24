@@ -26,10 +26,10 @@ export const AI_MODELS_UI: {
     pageDescription: "Smartest - Use for expensive but awesome results!"
   },
   {
-    name: "Claude 3 Sonnet",
-    model: "claude-3-sonnet-20240229",
-    smarterDescription: "Perfectly fine!",
-    pageDescription: "Middle child - still kind of expensive"
+    name: "Claude 3.5 Sonnet",
+    model: "claude-3-5-sonnet-20240620",
+    smarterDescription: "Almost as good as Opus, cheaper",
+    pageDescription: "New and improved middle child - still kind of expensive but cheaper than Opus or Omni while being competitive on performance."
   },
   {
     name: "Claude 3 Haiku",
@@ -70,6 +70,13 @@ export const AI_MODELS_INFO: Record<
     outputTokenLimit: 4096,
     inputTokensPerM: 15,
     outputTokensPerM: 75
+  },
+  "claude-3-5-sonnet-20240620": {
+    provider: "anthropic",
+    totalTokenLimit: 200000,
+    outputTokenLimit: 4096,
+    inputTokensPerM: 3,
+    outputTokensPerM: 15
   },
   "claude-3-sonnet-20240229": {
     provider: "anthropic",
