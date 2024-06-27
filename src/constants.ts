@@ -20,6 +20,12 @@ export const AI_MODELS_UI: {
   pageDescription: string;
 }[] = [
   {
+    name: "Claude 3.5 Sonnet",
+    model: "claude-3-5-sonnet-20240620",
+    smarterDescription: "King of the hill!",
+    pageDescription: "Faster, cheaper, smarter, only model cheaper is Haiku."
+  },
+  {
     name: "Claude 3 Opus",
     model: "claude-3-opus-20240229",
     smarterDescription: "This is the ferrari. Expensive but so good.",
@@ -64,6 +70,13 @@ export const AI_MODELS_INFO: Record<
     notes?: string;
   }
 > = {
+  "claude-3-5-sonnet-20240620": {
+    provider: "anthropic",
+    totalTokenLimit: 200000,
+    outputTokenLimit: 4096,
+    inputTokensPerM: 3,
+    outputTokensPerM: 15
+  },
   "claude-3-opus-20240229": {
     provider: "anthropic",
     totalTokenLimit: 200000,
