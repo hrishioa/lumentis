@@ -71,17 +71,9 @@ await setupI18n();
 const t = i18next.t.bind(i18next);
 
 async function runWizard() {
-  // Language selection
-  const languageChoice = await select({
-    message: "Choose your preferred language / 선호하는 언어를 선택하세요",
-    choices: [
-      { name: "English", value: "en" },
-      { name: "한국어", value: "ko" }
-    ],
-  });
 
-  // Change the language based on user's choice
-  await i18next.changeLanguage(languageChoice);
+
+
 
   function saveState(state: WizardState) {
     const keysToWrite = Object.keys(state).filter((k) => !k.includes("Apikey"));
@@ -97,9 +89,33 @@ async function runWizard() {
     ? JSON.parse(fs.readFileSync(wizardStatePath, "utf-8"))
     : {};
 
+
   console.log(t('welcome'));
   console.log(t('configFiles', { folder: LUMENTIS_FOLDER }));
   console.log(t('repeatSteps'));
+
+
+
+  // Language selection
+  if (!wizardState.language) {
+    const languageChoice = await select({
+      message: "Choose your preferred language / 선호하는 언어를 선택하세요",
+      choices: [
+        { name: "English", value: "en" },
+        { name: "한국어", value: "ko" }
+      ],
+    });
+
+
+    // Change the language based on user's choice
+    await i18next.changeLanguage(languageChoice);
+
+    wizardState.language = languageChoice
+    saveState(wizardState)
+  }
+
+
+
 
   if (!wizardState.gotDirectoryPermission) {
     wizardState.gotDirectoryPermission = await confirm({
