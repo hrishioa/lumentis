@@ -72,7 +72,10 @@ export type ReadyToGeneratePage = {
 };
 
 // ##############################  WIZARD  ##############################
+
+export type languageOptions = "EN" | "KO";
 export type WizardState = Partial<{
+  language: languageOptions;
   gotDirectoryPermission: boolean;
   smarterModel: string;
   streamToConsole: boolean;

@@ -10,8 +10,10 @@
     "@google/generative-ai": "^0.11.2",
     "@inquirer/prompts": "^4.3.0",
     "cross-spawn": "^7.0.3",
+    "i18next": "^23.14.0",
+    "i18next-fs-backend": "^2.3.2",
     "openai": "^4.47.1",
-    "typescript": "^5.4.3",
+    "typescript": "^5.0.0",
     "youtube-transcript": "^1.1.0"
   },
   "engines": {
@@ -35,7 +37,9 @@
     "package": "tsup",
     "check": "biome check --apply ."
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"
