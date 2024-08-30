@@ -1,8 +1,7 @@
 // import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { GenericMessageParam, Outline, OutlineSection } from "./types";
+import { GenericMessageParam, languageOptions, Outline, OutlineSection } from "./types";
 
 const languageInstruction = {
-  'default' : '',
   'EN' : '',
   'KO' : "\nWrite in Korean. All text should be written using Korean characters, other than what's necessary for formatting (markdown, Callouts, Steps, etc)"
 }
@@ -10,7 +9,7 @@ const languageInstruction = {
 export function getTitleInferenceMessages(
   primarySource: string,
   description: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -30,7 +29,7 @@ Please generate up to 10 possible names for documentation we want to build, for 
 export function getAudienceInferenceMessages(
   primarySource: string,
   description: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -49,7 +48,7 @@ Please generate up to 10 words describing the intended audience for creating doc
 
 export function getThemeInferenceMessages(
   primarySource: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -66,7 +65,7 @@ Please generate up to 10 possible keywords referring to industries, technologies
 
 export function getDescriptionInferenceMessages(
   primarySource: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -85,7 +84,7 @@ export function getQuestionsInferenceMessages(
   primarySource: string,
   description: string,
   alreadyAnsweredQuestions?: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -116,7 +115,7 @@ export function getOutlineRegenerationInferenceMessages(
   outlineGenerationMessages: GenericMessageParam[],
   selectedOutline: Outline,
   newSections: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     ...outlineGenerationMessages,
@@ -142,7 +141,7 @@ export function getOutlineInferenceMessages(
   intendedAudience: string,
   ambiguityExplained?: string,
   writingExample?: string,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -246,7 +245,7 @@ export function getPageGenerationInferenceMessages(
   selectedOutline: Outline,
   selectedSection: OutlineSection,
   addDiagrams: boolean,
-  language: string = 'default',
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   const actualWritingGuidelines = addDiagrams
     ? [

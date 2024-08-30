@@ -37,6 +37,7 @@ import {
 } from "./prompts";
 import {
   AICallerOptions,
+  languageOptions,
   Outline,
   OutlineSection,
   ReadyToGeneratePage,
@@ -47,7 +48,6 @@ import { isCommandAvailable, parsePlatformIndependentPath } from "./utils";
 import i18next from 'i18next';
 import Backend from 'i18next-fs-backend';
 import { join } from 'path';
-import { select } from "@inquirer/prompts";
 
 async function setupI18n() {
   await i18next
@@ -60,19 +60,19 @@ async function setupI18n() {
     });
 
   if (i18next.isInitialized) {
-    console.log('i18next has been initialized successfully');
+    // console.log('i18next has been initialized successfully');
   } else {
     console.error('i18next failed to initialize');
   }
 }
 
-await setupI18n();
+
 
 const t = i18next.t.bind(i18next);
 
 async function runWizard() {
 
-
+  await setupI18n();
 
 
   function saveState(state: WizardState) {
@@ -90,29 +90,32 @@ async function runWizard() {
     : {};
 
 
-  console.log(t('welcome'));
-  console.log(t('configFiles', { folder: LUMENTIS_FOLDER }));
-  console.log(t('repeatSteps'));
-
 
 
   // Language selection
   if (!wizardState.language) {
+
     const languageChoice = await select({
       message: "Choose your preferred language / 선호하는 언어를 선택하세요",
       choices: [
-        { name: "English", value: "en" },
-        { name: "한국어", value: "ko" }
+        { name: "English", value: "EN" as languageOptions },
+        { name: "한국어", value: "KO" as languageOptions },
       ],
     });
 
-
-    // Change the language based on user's choice
-    await i18next.changeLanguage(languageChoice);
-
-    wizardState.language = languageChoice
+    wizardState.language = languageChoice;
     saveState(wizardState)
   }
+
+
+  // Change the language based on user's choice
+  await i18next.changeLanguage(wizardState.language);
+
+
+  console.log(t('welcome'));
+  console.log(t('configFiles', { folder: LUMENTIS_FOLDER }));
+  console.log(t('repeatSteps'));
+
 
 
 
@@ -289,7 +292,8 @@ async function runWizard() {
   };
 
   const descriptionInferenceMessages = getDescriptionInferenceMessages(
-    wizardState.loadedPrimarySource
+    wizardState.loadedPrimarySource,
+    wizardState.language
   );
 
   const description = await input({
@@ -330,7 +334,8 @@ async function runWizard() {
 
   const titleInferenceMessages = getTitleInferenceMessages(
     wizardState.loadedPrimarySource,
-    wizardState.description
+    wizardState.description,
+    wizardState.language
   );
 
   const title = await input({
@@ -401,7 +406,8 @@ async function runWizard() {
     saveState(wizardState);
 
     const themesInferenceMessages = getThemeInferenceMessages(
-      wizardState.loadedPrimarySource
+      wizardState.loadedPrimarySource,
+      wizardState.language
     );
 
     const themesFromUser = await input({
@@ -452,7 +458,8 @@ async function runWizard() {
 
     const audienceInferenceMessages = getAudienceInferenceMessages(
       wizardState.loadedPrimarySource,
-      wizardState.description
+      wizardState.description,
+      wizardState.language
     );
 
     const audienceFromUser = await input({
@@ -506,7 +513,8 @@ async function runWizard() {
     const questionsMessages = getQuestionsInferenceMessages(
       wizardState.loadedPrimarySource,
       wizardState.description,
-      wizardState.ambiguityExplained
+      wizardState.ambiguityExplained,
+      wizardState.language
     );
 
     const questionPermission = await confirm({
@@ -605,7 +613,8 @@ async function runWizard() {
       wizardState.coreThemes,
       wizardState.intendedAudience,
       wizardState.ambiguityExplained,
-      wizardState.writingExample
+      wizardState.writingExample,
+      wizardState.language
     );
 
     const previousOutlineInvalidated =
@@ -757,7 +766,8 @@ async function runWizard() {
         getOutlineRegenerationInferenceMessages(
           outlineQuestions,
           outlineCopyForImprovements,
-          ".".repeat(3000)
+          ".".repeat(3000),
+          wizardState.language
         );
 
       if (!wizardState.outlineComments) wizardState.outlineComments = "";
@@ -782,7 +792,8 @@ async function runWizard() {
           getOutlineRegenerationInferenceMessages(
             outlineQuestions,
             outlineCopyForImprovements,
-            tempOutlineComments
+            tempOutlineComments,
+            wizardState.language
           );
 
         const newSectionsResponse = await callLLM(
@@ -840,7 +851,8 @@ async function runWizard() {
             outlineQuestions,
             overallOutline,
             section,
-            addDiagrams
+            addDiagrams,
+            wizardState.language
           )
         };
 
