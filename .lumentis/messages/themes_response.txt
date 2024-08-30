@@ -1,0 +1,12 @@
+[
+  "LLM",
+  "NLP",
+  "AI",
+  "GPT",
+  "Embedding",
+  "Machine Learning",
+  "Chatbots",
+  "Natural Language Processing",
+  "OpenAI",
+  "Prompt Engineering"
+]
