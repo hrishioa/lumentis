@@ -8,6 +8,10 @@
 
 <h3 align="center">Generate beautiful docs from your transcripts and unstructured information with a single command.</h3>
 
+<div align="center">
+  <a href="https://trendshift.io/repositories/8853" target="_blank"><img src="https://trendshift.io/api/badge/repositories/8853" alt="hrishioa%2Flumentis | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</div>
+
 A simple way to generate comprehensive, easy-to-skim docs from your meeting transcripts and large documents. Now supports GPT-4 Omni and Gemini Flash!
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/hrishi?style=social)](https://twitter.com/hrishioa)
