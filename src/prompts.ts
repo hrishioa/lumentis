@@ -1,9 +1,33 @@
 // import type { MessageParam } from "@anthropic-ai/sdk/resources";
-import { GenericMessageParam, Outline, OutlineSection } from "./types";
+import { GenericMessageParam, languageOptions, Outline, OutlineSection } from "./types";
+
+
+const languageNames : Record<languageOptions, {name: string, nativeName: string, type: 'letters' | 'characters'}> = {
+  'EN': {
+    name: 'English',
+    nativeName: 'English',
+    type: 'letters'
+  },
+  'KO' : {
+    name: 'Korean',
+    nativeName: '한국어',
+    type: 'characters'
+  },
+}
+
+function getLanguageInstruction(language : languageOptions) {
+  if (language === 'EN') {
+    return '';
+  }
+  return `\nWrite in ${languageNames[language].name}. All text should be written using ${languageNames[language].name} (${languageNames[language].nativeName}) ${languageNames[language].type}, other than what's necessary for formatting (markdown, Callouts, Steps, etc).`;
+}
+
+
 
 export function getTitleInferenceMessages(
   primarySource: string,
-  description: string
+  description: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -15,14 +39,15 @@ ${primarySource}
 
 ${description}
 
-Please generate up to 10 possible names for documentation we want to build, for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
+Please generate up to 10 possible names for documentation we want to build, for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.${getLanguageInstruction(language)}`
     }
   ];
 }
 
 export function getAudienceInferenceMessages(
   primarySource: string,
-  description: string
+  description: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -34,13 +59,14 @@ ${primarySource}
 
 ${description}
 
-Please generate up to 10 words describing the intended audience for creating documentation from the data in PrimarySource (which level, what type of job, etc). Return them as a JSON array of strings without markdown code blocks.`
+Please generate up to 10 words describing the intended audience for creating documentation from the data in PrimarySource (which level, what type of job, etc). Return them as a JSON array of strings without markdown code blocks.${getLanguageInstruction(language)}`
     }
   ];
 }
 
 export function getThemeInferenceMessages(
-  primarySource: string
+  primarySource: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -50,13 +76,14 @@ export function getThemeInferenceMessages(
 ${primarySource}
 </PrimarySource>
 
-Please generate up to 10 possible keywords referring to industries, technologies, people or other themes for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.`
+Please generate up to 10 possible keywords referring to industries, technologies, people or other themes for the data in PrimarySource. Return them as a JSON array of strings without markdown code blocks.${getLanguageInstruction(language)}`
     }
   ];
 }
 
 export function getDescriptionInferenceMessages(
-  primarySource: string
+  primarySource: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -66,8 +93,7 @@ export function getDescriptionInferenceMessages(
 ${primarySource}
 </PrimarySource>
 
-Please provide a three sentence description of the information in PrimarySource. Is this a conversation transcript, an article, etc? What is it about? what are the key themes and who is this likely by and for? No newlines.
-`
+Please provide a three sentence description of the information in PrimarySource. Is this a conversation transcript, an article, etc? What is it about? what are the key themes and who is this likely by and for? No newlines.${getLanguageInstruction(language)}`
     }
   ];
 }
@@ -75,7 +101,8 @@ Please provide a three sentence description of the information in PrimarySource.
 export function getQuestionsInferenceMessages(
   primarySource: string,
   description: string,
-  alreadyAnsweredQuestions?: string
+  alreadyAnsweredQuestions?: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -97,7 +124,7 @@ ${alreadyAnsweredQuestions}
 }
 
 We want to build proper comprehensive docs for what's in PrimarySource. Can you give me a JSON array of strings, of 10 questions about things that might be confusing, need more explanation, or color?
-`
+${getLanguageInstruction(language)}`
     }
   ];
 }
@@ -105,7 +132,8 @@ We want to build proper comprehensive docs for what's in PrimarySource. Can you 
 export function getOutlineRegenerationInferenceMessages(
   outlineGenerationMessages: GenericMessageParam[],
   selectedOutline: Outline,
-  newSections: string
+  newSections: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     ...outlineGenerationMessages,
@@ -118,7 +146,7 @@ export function getOutlineRegenerationInferenceMessages(
       role: "user",
       content: `Can you regenerate the outline with the following requests or new sections? ${newSections}
 Follow the Outline typespec.
-`
+${getLanguageInstruction(language)}`
     }
   ];
 }
@@ -130,7 +158,8 @@ export function getOutlineInferenceMessages(
   themes: string,
   intendedAudience: string,
   ambiguityExplained?: string,
-  writingExample?: string
+  writingExample?: string,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   return [
     // prettier-ignore
@@ -188,7 +217,8 @@ type Outline = {
   title: string;
   sections: OutlineSection[];
 };
-`
+
+${getLanguageInstruction(language)}`
     }
   ];
 }
@@ -232,7 +262,8 @@ export function getPageGenerationInferenceMessages(
   outlineGenerationMessages: GenericMessageParam[],
   selectedOutline: Outline,
   selectedSection: OutlineSection,
-  addDiagrams: boolean
+  addDiagrams: boolean,
+  language: languageOptions = 'EN',
 ): GenericMessageParam[] {
   const actualWritingGuidelines = addDiagrams
     ? [
@@ -261,6 +292,7 @@ export function getPageGenerationInferenceMessages(
       } (permalink: ${selectedSection.permalink}) in mdx, following these guidelines:
 
 ${actualWritingGuidelines.map((g, i) => `${i + 1}. ${g}`).join("\n")}
+${getLanguageInstruction(language)}
 ${
   selectedSection.subsections
     ? `${
