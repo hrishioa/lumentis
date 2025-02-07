@@ -641,7 +641,14 @@ async function runWizard() {
     });
 
     if (outlineResponse.success) {
-      wizardState.generatedOutline = outlineResponse.message;
+      const outline : Outline = outlineResponse.response;
+      outline.sections.forEach((section) => {
+        if (section.permalink === 'introduction' || section.permalink === 'Introduction' || section.permalink === 'summary') {
+          section.permalink = 'index'
+        }
+
+      })
+      wizardState.generatedOutline = outlineResponse.response;
     } else {
       console.log(
         "Couldn't generate the outline. You can run me again to retry."
