@@ -207,12 +207,23 @@ async function callOpenAI(
 
   const openai = apiKey ? new OpenAI({ apiKey }) : new OpenAI();
 
+  const modelInfo = AI_MODELS_INFO[model];
+  const isO3Mini = modelInfo.baseModel === "o3-mini";
+  const actualModel = isO3Mini ? modelInfo.baseModel! : model;
+
   const completion = await openai.chat.completions.create({
-    messages,
-    model,
+    messages: messages.map(msg => {
+      const baseMessage = {
+        role: msg.role,
+        content: isO3Mini ? [{ type: "text" as const, text: msg.content }] : msg.content
+      };
+      return baseMessage;
+    }) as any, // Type assertion needed due to OpenAI's strict typing
+    model: actualModel,
     stream: true,
-    max_tokens: maxOutputTokens,
-    response_format: jsonType ? { type: "json_object" } : undefined
+    ...(isO3Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
+    response_format: jsonType ? { type: "json_object" } : { type: "text" },
+    ...(isO3Mini ? { reasoning_effort: modelInfo.reasoningEffort } : {})
   });
 
   if (streamToConsole) {

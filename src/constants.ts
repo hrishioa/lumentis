@@ -20,6 +20,18 @@ export const AI_MODELS_UI: {
   pageDescription: string;
 }[] = [
   {
+    name: "O3-Mini (High Reasoning)",
+    model: "o3-mini-high",
+    smarterDescription: "Fast model with high reasoning effort",
+    pageDescription: "Fast model optimized for reasoning tasks"
+  },
+  {
+    name: "O3-Mini (Low Reasoning)",
+    model: "o3-mini-low",
+    smarterDescription: "Fast model with low reasoning effort",
+    pageDescription: "Fast model optimized for straightforward tasks"
+  },
+  {
     name: "Claude 3.5 Sonnet",
     model: "claude-3-5-sonnet-20240620",
     smarterDescription: "King of the hill!",
@@ -68,8 +80,30 @@ export const AI_MODELS_INFO: Record<
     inputTokensPerM: number;
     outputTokensPerM: number;
     notes?: string;
+    baseModel?: string;
+    reasoningEffort?: "high" | "low";
   }
 > = {
+  "o3-mini-high": {
+    provider: "openai",
+    tokenCountingModel: "gpt-4",
+    totalTokenLimit: 128000,
+    outputTokenLimit: 100000,
+    inputTokensPerM: 1.32,
+    outputTokensPerM: 5.28,
+    baseModel: "o3-mini",
+    reasoningEffort: "high"
+  },
+  "o3-mini-low": {
+    provider: "openai",
+    tokenCountingModel: "gpt-4",
+    totalTokenLimit: 128000,
+    outputTokenLimit: 100000,
+    inputTokensPerM: 1.10,
+    outputTokensPerM: 4.40,
+    baseModel: "o3-mini",
+    reasoningEffort: "low"
+  },
   "claude-3-5-sonnet-20240620": {
     provider: "anthropic",
     totalTokenLimit: 200000,

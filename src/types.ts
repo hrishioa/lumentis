@@ -17,9 +17,16 @@ export type AICallerOptions = {
   continuing?: boolean;
 };
 
+export type OpenAIContent = {
+  type: "text";
+  text: string;
+}[];
+
+export type MessageContent = string;
+
 export type GenericMessageParam = {
-  role: "user" | "assistant" | "system";
-  content: string;
+  role: "system" | "user" | "assistant";
+  content: MessageContent;
 };
 
 export type AICosts = {
