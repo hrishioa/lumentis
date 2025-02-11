@@ -222,7 +222,7 @@ async function callOpenAI(
     model: actualModel,
     stream: true,
     ...(isO3Mini ? { max_completion_tokens: maxOutputTokens } : { max_tokens: maxOutputTokens }),
-    response_format: jsonType ? { type: "json_object" } : { type: "text" },
+    response_format: (!isO3Mini && jsonType) ? { type: "json_object" } : { type: "text" },
     ...(isO3Mini ? { reasoning_effort: modelInfo.reasoningEffort } : {})
   });
 
