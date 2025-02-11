@@ -605,26 +605,26 @@ async function callGemini(
     responseMimeType: jsonType ? "application/json" : "text/plain"
   };
 
-  const geminiAcceptableMessages = messages
-    .filter(
-      (message, index) =>
-        message.role !== "assistant" || index < messages.length - 1
-    )
-    .filter((message) => message.role !== "system")
-    .map((message) => ({
-      role: message.role === "assistant" ? "model" : "user",
-      parts: [{ text: message.content }]
-    }));
+  // Convert messages to Gemini format
+  const geminiMessages = messages.map(message => ({
+    role: message.role === "assistant" ? "model" : "user",
+    parts: [{ text: message.content }]
+  }));
 
-  const chat = modelInstance.startChat({
-    history: geminiAcceptableMessages.slice(0, -1),
-    safetySettings: GOOGLE_SAFETY_SETTINGS,
+  // Get the last message as the prompt
+  const lastMessage = geminiMessages[geminiMessages.length - 1];
+  const history = geminiMessages.slice(0, -1);
+
+  // Create content for generation
+  const content = {
+    contents: [
+      ...history,
+      lastMessage
+    ],
     generationConfig
-  });
+  };
 
-  const resultStream = await chat.sendMessageStream(
-    geminiAcceptableMessages[geminiAcceptableMessages.length - 1].parts[0].text
-  );
+  const result = await modelInstance.generateContentStream(content);
 
   if (streamToConsole) {
     process.stdout.write(
@@ -639,31 +639,26 @@ async function callGemini(
   let outputTokens = 0;
   const inputTokens = (
     await modelInstance.countTokens({
-      contents: geminiAcceptableMessages
+      contents: geminiMessages
     })
   ).totalTokens;
 
-  for await (const chunk of resultStream.stream) {
+  for await (const chunk of result.stream) {
     const chunkText = chunk.text();
-
-    outputTokens += chunk.usageMetadata?.candidatesTokenCount || 0;
-
     if (!chunkText) continue;
 
+    outputTokens += chunk.usageMetadata?.candidatesTokenCount || 0;
     fullMessage += chunkText;
 
     if (streamToConsole) {
       process.stdout.write(chunkText);
     }
 
-    if (saveToFilepath) {
-      diffToFlush += chunkText.length;
-
-      if (diffToFlush > 5000) {
-        diffToFlush = 0;
-        fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
-      }
+    if (saveToFilepath && diffToFlush > 5000) {
+      diffToFlush = 0;
+      fs.writeFileSync(saveToFilepath, (prefix || "") + fullMessage);
     }
+    diffToFlush += chunkText.length;
   }
 
   if (jsonType === "start_array") {

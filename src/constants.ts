@@ -66,6 +66,24 @@ export const AI_MODELS_UI: {
     model: "gemini-1.5-flash-latest",
     smarterDescription: "Fast and cheap, with a lot more output length",
     pageDescription: "For any Google stans"
+  },
+  {
+    name: "Gemini 2.0 Flash",
+    model: "gemini-2.0-flash",
+    smarterDescription: "Latest Gemini model with multimodal support",
+    pageDescription: "Latest and greatest from Google"
+  },
+  {
+    name: "Gemini Flash Thinking",
+    model: "gemini-flash-thinking-exp",
+    smarterDescription: "Experimental model with enhanced reasoning",
+    pageDescription: "Best for complex reasoning tasks"
+  },
+  {
+    name: "Gemini 2.0 Pro",
+    model: "gemini-2.0-pro-exp-02-05",
+    smarterDescription: "Pro version with balanced performance",
+    pageDescription: "Balanced performance for most tasks"
   }
 ] as const;
 
@@ -88,7 +106,7 @@ export const AI_MODELS_INFO: Record<
     provider: "openai",
     tokenCountingModel: "gpt-4",
     totalTokenLimit: 128000,
-    outputTokenLimit: 100000,
+    outputTokenLimit: 50000,
     inputTokensPerM: 1.32,
     outputTokensPerM: 5.28,
     baseModel: "o3-mini",
@@ -98,7 +116,7 @@ export const AI_MODELS_INFO: Record<
     provider: "openai",
     tokenCountingModel: "gpt-4",
     totalTokenLimit: 128000,
-    outputTokenLimit: 100000,
+    outputTokenLimit: 50000,
     inputTokensPerM: 1.10,
     outputTokensPerM: 4.40,
     baseModel: "o3-mini",
@@ -143,6 +161,39 @@ export const AI_MODELS_INFO: Record<
   "gemini-1.5-flash-latest": {
     provider: "google",
     totalTokenLimit: 1000000,
+    outputTokenLimit: 8192,
+    inputTokensPerM: 0.75,
+    outputTokensPerM: 0.53,
+    notes: `
+Please be aware that Google offers both Free and Paid plans, determined by the API key used.
+We list costs for the Paid plan. Free plan costs $0.00, but means Google will use your data.
+See: ai.google.dev/gemini-api/terms`
+  },
+  "gemini-2.0-flash": {
+    provider: "google",
+    totalTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    inputTokensPerM: 0.75,
+    outputTokensPerM: 0.53,
+    notes: `
+Please be aware that Google offers both Free and Paid plans, determined by the API key used.
+We list costs for the Paid plan. Free plan costs $0.00, but means Google will use your data.
+See: ai.google.dev/gemini-api/terms`
+  },
+  "gemini-flash-thinking-exp": {
+    provider: "google",
+    totalTokenLimit: 1048576,
+    outputTokenLimit: 8192,
+    inputTokensPerM: 0.75,
+    outputTokensPerM: 0.53,
+    notes: `
+Please be aware that Google offers both Free and Paid plans, determined by the API key used.
+We list costs for the Paid plan. Free plan costs $0.00, but means Google will use your data.
+See: ai.google.dev/gemini-api/terms`
+  },
+  "gemini-2.0-pro-exp-02-05": {
+    provider: "google",
+    totalTokenLimit: 1048576,
     outputTokenLimit: 8192,
     inputTokensPerM: 0.75,
     outputTokensPerM: 0.53,
