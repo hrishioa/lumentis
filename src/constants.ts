@@ -118,13 +118,6 @@ export const AI_MODELS_INFO: Record<
     inputTokensPerM: 15,
     outputTokensPerM: 75
   },
-  "claude-3-5-sonnet-20240620": {
-    provider: "anthropic",
-    totalTokenLimit: 200000,
-    outputTokenLimit: 4096,
-    inputTokensPerM: 3,
-    outputTokensPerM: 15
-  },
   "claude-3-sonnet-20240229": {
     provider: "anthropic",
     totalTokenLimit: 200000,
